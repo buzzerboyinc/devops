@@ -1,12 +1,14 @@
 #!/bin/bash
 
 #
+#
 # (c) Buzzerboy Inc. (www.buzzerboy.com) 2025
 #
-# CDKTF Terraform Diff Script
+#
+# CDKTF Terraform Deploy Script
 # 
 # This script sets up a Python virtual environment, installs CDKTF (Cloud Development Kit for Terraform),
-# and runs terraform diff operations to compare the current infrastructure state with the desired state.
+# and runs terraform deploy operations to apply infrastructure changes to the target environment.
 #
 # REQUIRED ENVIRONMENT VARIABLES:
 # --------------------------------
@@ -25,7 +27,7 @@
 # export app="frontend"
 # export tier="dev"
 # export architectureFolder="infrastructure"
-# bash td-diff.sh
+# bash tf-deploy.sh
 #
 
 # Enable strict error handling
@@ -81,7 +83,7 @@ validate_environment() {
 # Main execution
 main() {
     print_separator
-    log_info "Starting CDKTF Terraform Diff Script"
+    log_info "Starting CDKTF Terraform Deploy Script"
     print_separator
     
     # Validate environment
@@ -134,7 +136,6 @@ main() {
     fi
     print_separator
 
-
     # Navigate to tier folder
     log_info "Navigating to tier folder: ${tier}"
     if [[ ! -d "${tier}" ]]; then
@@ -171,6 +172,7 @@ main() {
     df -h
     print_separator
 
+
     # System cleanup and optimization
     log_info "Performing system cleanup to free up space..."
     
@@ -189,6 +191,7 @@ main() {
     log_info "Disk usage after cleanup:"
     df -h
     print_separator
+
 
     # AWS configuration verification
     log_info "Verifying AWS configuration..."
@@ -226,19 +229,19 @@ main() {
     log_success "CDKTF get completed"
     print_separator
 
-    log_info "Running CDKTF synth (generating Terraform code)..."
-    PIPENV_VERBOSITY=-1 cdktf synth
-    log_success "CDKTF synth completed"
-    print_separator
-
-    # Final diff operation
+    # Final deployment operation
     readonly STACK_NAME="${product}-${app}-${tier}-stack"
-    log_info "Running CDKTF diff for stack: ${STACK_NAME}"
-    PIPENV_VERBOSITY=-1 cdktf diff "${STACK_NAME}"
-    log_success "CDKTF diff completed successfully"
+    log_warning "IMPORTANT: About to deploy infrastructure changes to ${tier} environment!"
+    log_info "Stack name: ${STACK_NAME}"
+    log_info "Running CDKTF deploy with auto-approval..."
+    
+    # Note: --auto-approve is used for automation, but consider removing it for production
+    PIPENV_VERBOSITY=-1 cdktf deploy --auto-approve "${STACK_NAME}"
+    log_success "CDKTF deploy completed successfully"
     print_separator
     
-    log_success "Script execution completed successfully!"
+    log_success "Deployment script execution completed successfully!"
+    log_info "Infrastructure changes have been applied to the ${tier} environment."
 }
 
 # Error handling
