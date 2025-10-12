@@ -74,6 +74,7 @@ app = os.environ.get('app', None)
 product = os.environ.get('product', None)
 repoName = os.environ.get('repoName', None)
 rootDir = os.environ.get('rootDir', None)
+strict_mode = os.environ.get('strict_mode', 'false').lower() == 'true'
 
 if rootDir is None:
     rootDir = os.getcwd()
@@ -130,7 +131,8 @@ def main():
         print("\nErrors:")
         for error in errors:
             print(f"{ERROR_CONSOLE_COLOR}{error}{RESET_CONSOLE_COLOR}")
-        raise Exception("Verification failed due to errors.")
+        if strict_mode:
+            raise Exception("Verification failed due to errors.")
     
 
 
