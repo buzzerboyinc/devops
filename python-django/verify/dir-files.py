@@ -36,7 +36,7 @@ FILES_TO_VERIFY = {
     'manage.py': '{{repo_root}}/{{app_name}}/manage.py',
     'Dockerfile': '{{repo_root}}/{{app_name}}/Dockerfile',
     'requirements.txt': '{{repo_root}}/{{app_name}}/requirements.txt',
-    'settings.py': '{{repo_root}}/{{app_name}}/{{app_name}}/core/settings.py',
+    'settings.py': '{{repo_root}}/{{app_name}}/core/settings.py',
     'LoadAllFixtures.py': '{{repo_root}}/{{app_name}}/loaders/LoadAllFixtures.py',
     'base.html': '{{repo_root}}/{{app_name}}/html5_ui/includes/base.html',
     'index.html': '{{repo_root}}/{{app_name}}/html5_ui/index.html',
@@ -75,6 +75,7 @@ product = os.environ.get('product', None)
 repoName = os.environ.get('repoName', None)
 rootDir = os.environ.get('rootDir', None)
 strict_mode = os.environ.get('strict_mode', 'false').lower() == 'true'
+skip_repo_name_subdir = os.environ.get('skip_repo_name_subdir', 'true').lower() == 'true'
 
 if rootDir is None:
     rootDir = os.getcwd()
@@ -84,6 +85,9 @@ if app is None or product is None or repoName is None:
     raise ValueError("Environment variables 'app', 'product', and 'repoName' must be set.")
 
 repoRoot = os.path.join(rootDir, repoName) 
+if skip_repo_name_subdir:
+    repoRoot = rootDir
+    
 
 for key in DIRS_TO_VERIFY:
     DIRS_TO_VERIFY[key] = DIRS_TO_VERIFY[key].replace('{{app_name}}', app)
