@@ -1,7 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+# ========= INSTRUCTIONS ========================
+#1. Save as /root/adoagent-bootstrap.sh, then run:
+#2. sudo bash /root/adoagent-bootstrap.sh
+#3. Set values for ADO_ORG_NAME and ADO_POOL_NAME in the script before running
+#4. After script completes, check status of adoagent-setup.service and vsts.agent
+
+# Pre-requisites:
+# - Ubuntu 20.04+ VM (tested on 20.04 and 22.04)
+# - VM has internet access
+# - VM has IAM role or AWS credentials with access to Secrets Manager to read PAT secret
+# - Create Secrets Manager secret with PAT for Azure DevOps agent (plain string or JSON {"pat":"..."} format)
+# - Define environment variables before running script:
+#   ADO_ORG_NAME      - Azure DevOps organization name
+#   ADO_POOL_NAME     - Azure DevOps agent pool name
+# ===============================================
+
+
 # ========= CONFIG =========
+ADO_ORG_NAME="<set ADO organization name here>"        # e.g., myorg
+ADO_POOL_NAME="<set ADO agent pool name here>"        # e.g., Default
 AZDO_ORG_URL="https://dev.azure.com/$ADO_ORG_NAME"
 AZDO_POOL="$ADO_POOL_NAME"
 AZDO_AGENT_NAME="$(hostname)"                  # resource name = hostname
