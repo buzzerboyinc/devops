@@ -86,7 +86,12 @@ echo "=== [5/9] Creating adoagent user account ==="
 if ! id -u "${AGENT_USER}" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "${AGENT_USER}"
   usermod -aG sudo "${AGENT_USER}"
+  echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/${AGENT_USER}" >/dev/null
+  chmod 440 "/etc/sudoers.d/${AGENT_USER}"
 fi
+
+sudo chmod 440 "/etc/sudoers.d/${AGENT_USER}"
+
 
 # -------------------------------------------------------------------
 # 6. Install nvm + Node.js 20 LTS for adoagent user
