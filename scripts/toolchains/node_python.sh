@@ -9,6 +9,28 @@ apt-get install -y \
   python3 python3-venv python3-distutils \
   pkg-config default-libmysqlclient-dev build-essential libssl-dev libffi-dev libpq-dev gcc
 
+echo "=== Step 1: Install .NET 8 SDK ==="
+
+# ---- Fix for distutils missing on newer Ubuntu ----
+echo "=== Installing python3-distutils manually if missing ==="
+if ! python3 -c "import distutils" >/dev/null 2>&1; then
+  PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+  apt-get install -y "python${PY_VER}-distutils" || true
+  if ! python3 -c "import distutils" >/dev/null 2>&1; then
+    echo "Falling back to pip-based installation of distutils"
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3
+    python3 -m pip install setuptools
+  fi
+fi
+
+# ---- AWS CLI v2 install (official bundle, replaces apt) ----
+echo "=== Installing AWS CLI v2 ==="
+cd /tmp
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip -q awscliv2.zip
+sudo ./aws/install --update
+aws --version
+
 echo "=== Step 2: Install .NET 8 SDK ==="
 UBU_VER="$(lsb_release -rs)"
 MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/${UBU_VER}/packages-microsoft-prod.deb"
