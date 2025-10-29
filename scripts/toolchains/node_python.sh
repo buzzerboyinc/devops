@@ -122,9 +122,12 @@ cdktf --version
 # 9. Final verification
 # -------------------------------------------------------------------
 echo "=== [9/9] Verifying installations ==="
-python3 --version
-aws --version
-dotnet --list-sdks
-terraform -version
-cdktf --version
+echo "Installed tool versions:" 
+echo "-------------------------"
+echo "NODE is: $(node -v)"
+echo "PYTHON is: $(python3 --version)"
+echo "AWS CLI is: $(aws --version)"
+echo "DOTNET is: $(dotnet --list-sdks)"
+echo "TERRAFORM is: $(terraform -version)"
+echo "CDKTF is: $(cdktf --version)"
 sudo -u "${AGENT_USER}" bash -c "source /home/${AGENT_USER}/.nvm/nvm.sh && node -v && npm -v && cdktf --version"
