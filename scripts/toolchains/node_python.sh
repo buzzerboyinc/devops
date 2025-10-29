@@ -62,7 +62,7 @@ if ! curl -fsI "$MS_DEB_URL" >/dev/null; then
   MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
 fi
 curl -fsSL "$MS_DEB_URL" -o /tmp/packages-microsoft-prod.deb
-dpkg -i /tmp/packages-microsoft-prod.deb
+dpkg -i --force-confdef --force-confold /tmp/packages-microsoft-prod.deb
 apt-get update -y
 apt-get install -y dotnet-sdk-8.0
 dotnet --list-sdks
