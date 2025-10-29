@@ -74,7 +74,7 @@ dotnet --list-sdks
 # -------------------------------------------------------------------
 echo "=== [4/9] Installing Terraform ==="
 install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg
+curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/hashicorp.gpg
 chmod a+r /etc/apt/keyrings/hashicorp.gpg
 echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   > /etc/apt/sources.list.d/hashicorp.list
