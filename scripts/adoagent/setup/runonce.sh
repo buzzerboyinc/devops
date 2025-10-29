@@ -12,6 +12,7 @@ set -euo pipefail
 # - Ubuntu 20.04+ VM (tested on 20.04 and 22.04)
 # - VM has internet access
 # - VM has IAM role or AWS credentials with access to Secrets Manager to read PAT secret
+# ----- Or clone: https://www.github.com/fahadzainjawaid/awsIdentityTools and use awsLogin and awsUseCreds to login
 # - Create Secrets Manager secret with PAT for Azure DevOps agent (plain string or JSON {"pat":"..."} format)
 # - Define environment variables before running script:
 #   ADO_ORG_NAME      - Azure DevOps organization name
