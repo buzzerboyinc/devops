@@ -97,3 +97,25 @@ export NVM_DIR="$HOME/.nvm"
 nvm install 20
 nvm alias default 20
 node -v
+
+
+
+# -------------------------------------------------------------------
+# 7. Install CDK for Terraform (cdktf-cli)
+# -------------------------------------------------------------------
+
+npm install -g cdktf-cli
+cdktf --version
+
+
+
+# -------------------------------------------------------------------
+# 9. Final verification
+# -------------------------------------------------------------------
+echo "=== [9/9] Verifying installations ==="
+python3 --version
+aws --version
+dotnet --list-sdks
+terraform -version
+cdktf --version
+sudo -u "${AGENT_USER}" bash -c "source /home/${AGENT_USER}/.nvm/nvm.sh && node -v && npm -v && cdktf --version"
