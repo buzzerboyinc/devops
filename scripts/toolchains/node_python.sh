@@ -30,7 +30,6 @@ exec > >(tee /var/log/adoagent-part1.log) 2>&1
 # Configuration
 # -------------------------------
 AGENT_USER="adoagent"             # dedicated user account
-AWSCLI_ZIP="awscliv2.zip"         # temp file name for AWS CLI installer
 NVM_VERSION="v0.39.7"             # nvm installer version
 
 echo "=== [1/9] Update apt and install base build tools ==="
@@ -42,3 +41,28 @@ apt-get install -y \
   python3 python3-venv \
   pkg-config build-essential gcc \
   default-libmysqlclient-dev libssl-dev libffi-dev libpq-dev
+
+
+# -------------------------------------------------------------------
+# 2. Install AWS CLI v2 (official snap package)
+# -------------------------------------------------------------------
+sudo snap install aws-cli --classic
+
+
+
+
+# -------------------------------------------------------------------
+# 3. Install Microsoft .NET 8 SDK
+# -------------------------------------------------------------------
+echo "=== [3/9] Installing Microsoft .NET 8 SDK ==="
+UBU_VER="$(lsb_release -rs)"
+MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/${UBU_VER}/packages-microsoft-prod.deb"
+# Fall back to 20.04 configuration if specific version not available
+if ! curl -fsI "$MS_DEB_URL" >/dev/null; then
+  MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+fi
+curl -fsSL "$MS_DEB_URL" -o /tmp/packages-microsoft-prod.deb
+dpkg -i /tmp/packages-microsoft-prod.deb
+apt-get update -y
+apt-get install -y dotnet-sdk-8.0
+dotnet --list-sdks
