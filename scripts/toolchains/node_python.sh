@@ -84,6 +84,15 @@ terraform -version
 
 
 
+# -------------------------------------------------------------------
+# 5. Create the "adoagent" user
+# -------------------------------------------------------------------
+echo "=== [5/9] Creating adoagent user account ==="
+if ! id -u "${AGENT_USER}" >/dev/null 2>&1; then
+  adduser --disabled-password --gecos "" "${AGENT_USER}"
+  usermod -aG sudo "${AGENT_USER}"
+fi
+
 
 
 
