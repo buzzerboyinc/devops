@@ -66,3 +66,31 @@ dpkg -i /tmp/packages-microsoft-prod.deb
 apt-get update -y
 apt-get install -y dotnet-sdk-8.0
 dotnet --list-sdks
+
+
+
+# -------------------------------------------------------------------
+# 4. Install Terraform (latest stable from HashiCorp)
+# -------------------------------------------------------------------
+echo "=== [4/9] Installing Terraform ==="
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg
+chmod a+r /etc/apt/keyrings/hashicorp.gpg
+echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  > /etc/apt/sources.list.d/hashicorp.list
+apt-get update -y
+apt-get install -y terraform
+terraform -version
+
+
+
+
+
+
+# -------------------------------------------------------------------
+# 6. Install Node.js 20 LTS via nvm (for adoagent user)
+# -------------------------------------------------------------------
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
