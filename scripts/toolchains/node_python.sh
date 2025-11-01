@@ -53,6 +53,7 @@ echo "  → Installing core system packages..."
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
   git curl tar wget unzip jq
+apt-get install -y pkg-config default-libmysqlclient-dev build-essential libssl-dev libffi-dev libpq-dev gcc git wget
 
 echo "  → Installing build tools and development libraries..."
 apt-get install -y \
