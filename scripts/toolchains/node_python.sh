@@ -71,6 +71,7 @@ echo "---------------------------------------------"
 # Install Python 3 and virtual environment tools
 echo "  → Installing Python 3 and venv module..."
 apt-get install -y python3 python3-venv
+apt-get install -y python3-pip
 
 # Verify Python installation
 PYTHON_VERSION=$(python3 --version)
