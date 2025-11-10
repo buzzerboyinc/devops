@@ -222,11 +222,13 @@ main() {
 
     # CDKTF operations
     log_info "Running CDKTF get (downloading providers)..."
-    PIPENV_VERBOSITY=-1 cdktf get
+    export NODE_OPTIONS="--max-old-space-size=4096"
+    PIPENV_VERBOSITY=-1 cdktf get --no-synth
     log_success "CDKTF get completed"
     print_separator
 
     log_info "Running CDKTF synth (generating Terraform code)..."
+    export NODE_OPTIONS="--max-old-space-size=4096"
     PIPENV_VERBOSITY=-1 cdktf synth
     log_success "CDKTF synth completed"
     print_separator
