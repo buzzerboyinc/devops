@@ -7,16 +7,20 @@
 #  development environment with global tool installations.
 #
 #  Installation Components:
-#    1. System Dependencies & Build Tools
+#    1. System Dependencies & Build Tools (including Graphviz & Chromium)
 #    2. Python 3 Environment & Virtual Environment Tools
-#    3. AWS CLI v2 (Official Package)
-#    4. Microsoft .NET 8 SDK
-#    5. HashiCorp Terraform (Latest Stable)
-#    6. Node Version Manager (nvm) - Global Installation
-#    7. Node.js 20 LTS - Global Installation via nvm
-#    8. NPM Package Manager - Included with Node.js
-#    9. CDK for Terraform (cdktf-cli) - Global NPM Package
-#   10. Global Environment Configuration & Tool Verification
+#    3. Python Diagram Libraries (diagrams, graphviz, pydot, pygraphviz)
+#    4. AWS CLI v2 (Official Package)
+#    5. AWS Lightsail Plugin (lightsailctl)
+#    6. Microsoft .NET 8 SDK
+#    7. HashiCorp Terraform (Latest Stable)
+#    8. Docker & Docker CE (Container Runtime)
+#    9. Node Version Manager (nvm) - Global Installation
+#   10. Node.js 20 LTS - Global Installation via nvm
+#   11. NPM Package Manager - Included with Node.js
+#   12. Global Environment Configuration
+#   13. CDK for Terraform (cdktf-cli) - Global NPM Package
+#   14. Markdown to PDF Converter (mdpdf) - Global NPM Package
 #
 #  Usage:
 #    sudo bash node_python.sh
@@ -60,6 +64,41 @@ apt-get install -y \
   pkg-config build-essential gcc \
   default-libmysqlclient-dev libssl-dev libffi-dev libpq-dev
 
+echo "  → Installing Graphviz for diagram generation..."
+apt-get install -y graphviz
+# Try to install libgraphviz-dev, but don't fail if there are dependency issues
+apt-get install -y libgraphviz-dev || echo "  ⚠️  Warning: libgraphviz-dev has dependency conflicts, skipping (graphviz core installed)"
+
+echo "  → Installing Chromium and dependencies for PDF generation..."
+# Try chromium-browser first, fall back to chromium, or skip if neither works
+if ! command -v chromium-browser &> /dev/null && ! command -v chromium &> /dev/null; then
+  apt-get install -y \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libwayland-client0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils
+  
+  # Try to install chromium (don't fail if snap is unavailable or slow)
+  timeout 60 apt-get install -y chromium || echo "  ⚠️  Warning: Chromium installation timed out or failed, skipping"
+else
+  echo "  ℹ️  Chromium already installed, skipping"
+fi
+
 echo "✅ System dependencies and build tools installed successfully"
 echo ""
 
@@ -71,133 +110,317 @@ echo "---------------------------------------------"
 
 # Install Python 3 and virtual environment tools
 echo "  → Installing Python 3 and venv module..."
-apt-get install -y python3 python3-venv
-apt-get install -y python3-pip
+apt-get install -y python3 python3-venv python3-full
+apt-get install -y python3-pip || echo "  ⚠️  python3-pip may have issues, will use alternative method"
 
 # Verify Python installation
 PYTHON_VERSION=$(python3 --version)
 echo "  → Python installed: ${PYTHON_VERSION}"
+
+# Try to upgrade pip, but don't fail if system pip is broken
+echo "  → Ensuring pip is available..."
+if ! python3 -m pip --version >/dev/null 2>&1; then
+  echo "  → System pip not working, installing pip via get-pip.py..."
+  curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+  python3 /tmp/get-pip.py
+  rm /tmp/get-pip.py
+fi
+
+python3 -m pip --version
 echo "✅ Python 3 environment setup completed"
 echo ""
 
 # ===============================================================
-# 3. AWS CLI v2 (OFFICIAL PACKAGE)
+# 3. PYTHON DIAGRAM LIBRARIES
 # ===============================================================
-echo "☁️  [3/11] Installing AWS CLI v2..."
+echo "🎨 [3/14] Installing Python Diagram Libraries..."
+echo "------------------------------------------------"
+
+# Check if diagram libraries are already installed
+if python3 -c "import diagrams; import graphviz; import pydot" 2>/dev/null; then
+  echo "  ℹ️  Python diagram libraries already installed"
+  echo "  → Skipping installation"
+else
+  # Install Python diagram and visualization packages
+  echo "  → Installing diagrams, graphviz, and pydot..."
+  python3 -m pip install --break-system-packages diagrams graphviz pydot || \
+  python3 -m pip install diagrams graphviz pydot
+  
+  # Try to install pygraphviz separately (may fail without libgraphviz-dev)
+  echo "  → Attempting to install pygraphviz (optional)..."
+  python3 -m pip install --break-system-packages pygraphviz 2>/dev/null || \
+  python3 -m pip install pygraphviz 2>/dev/null || \
+  echo "  ⚠️  pygraphviz could not be installed (requires libgraphviz-dev), continuing without it"
+
+  echo "  → Verifying core diagram libraries installation..."
+  python3 -c "import diagrams; import graphviz; import pydot; print('Core diagram libraries installed successfully')" || \
+  echo "  ⚠️  Some diagram libraries may not have installed correctly"
+fi
+echo "✅ Python diagram libraries installation completed"
+echo ""
+
+# ===============================================================
+# 4. AWS CLI v2 (OFFICIAL PACKAGE)
+# ===============================================================
+echo "☁️  [4/14] Installing AWS CLI v2..."
 echo "----------------------------------"
 
-# Install AWS CLI v2 using snap (official package manager approach)
-echo "  → Installing AWS CLI v2 via snap..."
-snap install aws-cli --classic
+# Check if AWS CLI is already installed
+if command -v aws &> /dev/null; then
+  AWS_VERSION=$(aws --version)
+  echo "  ℹ️  AWS CLI already installed: ${AWS_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Install AWS CLI v2 - try snap first, fall back to direct download
+  echo "  → Installing AWS CLI v2..."
+  if command -v snap &> /dev/null; then
+    echo "  → Using snap package manager..."
+    snap install aws-cli --classic
+  else
+    echo "  → Using direct download (snap not available)..."
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+    unzip -q /tmp/awscliv2.zip -d /tmp
+    /tmp/aws/install
+    rm -rf /tmp/aws /tmp/awscliv2.zip
+  fi
 
-# Verify AWS CLI installation
-AWS_VERSION=$(aws --version)
-echo "  → AWS CLI installed: ${AWS_VERSION}"
+  # Verify AWS CLI installation
+  AWS_VERSION=$(aws --version)
+  echo "  → AWS CLI installed: ${AWS_VERSION}"
+fi
 echo "✅ AWS CLI v2 installation completed"
 echo ""
 
 # ===============================================================
-# 4. MICROSOFT .NET 8 SDK
+# 5. AWS LIGHTSAIL PLUGIN (LIGHTSAILCTL)
 # ===============================================================
-echo "⚡ [4/11] Installing Microsoft .NET 8 SDK..."
+echo "☁️  [5/14] Installing AWS Lightsail Plugin..."
 echo "--------------------------------------------"
 
-# Determine Ubuntu version and set up Microsoft package repository
-echo "  → Configuring Microsoft package repository..."
-UBU_VER="$(lsb_release -rs)"
-MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/${UBU_VER}/packages-microsoft-prod.deb"
+# Check if lightsailctl is already installed
+if command -v lightsailctl &> /dev/null; then
+  LIGHTSAIL_VERSION=$(lightsailctl --version 2>&1 || echo "installed")
+  echo "  ℹ️  Lightsail plugin already installed: ${LIGHTSAIL_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Download and install lightsailctl
+  echo "  → Downloading lightsailctl from S3..."
+  curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" -o /tmp/lightsailctl
 
-# Fall back to Ubuntu 20.04 configuration if specific version not available
-if ! curl -fsI "$MS_DEB_URL" >/dev/null; then
-  echo "  → Falling back to Ubuntu 20.04 package configuration..."
-  MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+  echo "  → Installing lightsailctl to /usr/local/bin/..."
+  chmod +x /tmp/lightsailctl
+  mv /tmp/lightsailctl /usr/local/bin/
+
+  # Verify Lightsail plugin installation
+  LIGHTSAIL_VERSION=$(lightsailctl --version 2>&1 || echo "installed")
+  echo "  → Lightsail plugin installed: ${LIGHTSAIL_VERSION}"
 fi
+echo "✅ AWS Lightsail Plugin installation completed"
+echo ""
 
-# Download and install Microsoft package repository configuration
-curl -fsSL "$MS_DEB_URL" -o /tmp/packages-microsoft-prod.deb
-dpkg -i --force-confdef --force-confold /tmp/packages-microsoft-prod.deb
+# ===============================================================
+# 6. MICROSOFT .NET 8 SDK
+# ===============================================================
+echo "⚡ [6/14] Installing Microsoft .NET 8 SDK..."
+echo "--------------------------------------------"
 
-# Update package index and install .NET SDK
-echo "  → Installing .NET 8 SDK..."
-apt-get update -y
-apt-get install -y dotnet-sdk-8.0
+# Check if .NET SDK is already installed
+if command -v dotnet &> /dev/null; then
+  echo "  ℹ️  .NET SDK already installed:"
+  dotnet --list-sdks
+  echo "  → Skipping installation"
+else
+  # Determine Ubuntu version and set up Microsoft package repository
+  echo "  → Configuring Microsoft package repository..."
+  UBU_VER="$(lsb_release -rs)"
+  MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/${UBU_VER}/packages-microsoft-prod.deb"
 
-# Verify .NET SDK installation
-echo "  → Installed .NET SDKs:"
-dotnet --list-sdks
+  # Fall back to Ubuntu 20.04 configuration if specific version not available
+  if ! curl -fsI "$MS_DEB_URL" >/dev/null; then
+    echo "  → Falling back to Ubuntu 20.04 package configuration..."
+    MS_DEB_URL="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+  fi
+
+  # Download and install Microsoft package repository configuration
+  curl -fsSL "$MS_DEB_URL" -o /tmp/packages-microsoft-prod.deb
+  dpkg -i --force-confdef --force-confold /tmp/packages-microsoft-prod.deb
+
+  # Update package index and install .NET SDK
+  echo "  → Installing .NET 8 SDK..."
+  apt-get update -y
+  apt-get install -y dotnet-sdk-8.0
+
+  # Verify .NET SDK installation
+  echo "  → Installed .NET SDKs:"
+  dotnet --list-sdks
+fi
 echo "✅ Microsoft .NET 8 SDK installation completed"
 echo ""
 
 # ===============================================================
-# 5. HASHICORP TERRAFORM (LATEST STABLE)
+# 7. HASHICORP TERRAFORM (LATEST STABLE)
 # ===============================================================
-echo "🏗️  [5/11] Installing HashiCorp Terraform..."
+echo "🏗️  [7/14] Installing HashiCorp Terraform..."
 echo "-------------------------------------------"
 
-# Set up HashiCorp package repository
-echo "  → Configuring HashiCorp package repository..."
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/hashicorp.gpg
-chmod a+r /etc/apt/keyrings/hashicorp.gpg
+# Check if Terraform is already installed
+if command -v terraform &> /dev/null; then
+  TERRAFORM_VERSION=$(terraform -version | head -n 1)
+  echo "  ℹ️  Terraform already installed: ${TERRAFORM_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Set up HashiCorp package repository
+  echo "  → Configuring HashiCorp package repository..."
+  install -d -m 0755 /etc/apt/keyrings
+  curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/hashicorp.gpg
+  chmod a+r /etc/apt/keyrings/hashicorp.gpg
 
-# Add HashiCorp repository to sources list
-echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
-  > /etc/apt/sources.list.d/hashicorp.list
+  # Add HashiCorp repository to sources list
+  echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/hashicorp.list
 
-# Install Terraform
-echo "  → Installing Terraform..."
-apt-get update -y
-apt-get install -y terraform
+  # Install Terraform
+  echo "  → Installing Terraform..."
+  apt-get update -y
+  apt-get install -y terraform
 
-# Verify Terraform installation
-TERRAFORM_VERSION=$(terraform -version | head -n 1)
-echo "  → ${TERRAFORM_VERSION}"
+  # Verify Terraform installation
+  TERRAFORM_VERSION=$(terraform -version | head -n 1)
+  echo "  → ${TERRAFORM_VERSION}"
+fi
 echo "✅ HashiCorp Terraform installation completed"
 echo ""
 
 # ===============================================================
-# 6. NODE VERSION MANAGER (NVM) - GLOBAL INSTALLATION
+# 8. DOCKER & DOCKER CE (CONTAINER RUNTIME)
 # ===============================================================
-echo "📦 [6/11] Installing Node Version Manager (nvm)..."
+echo "🐳 [8/14] Installing Docker & Docker CE..."
+echo "-----------------------------------------"
+
+# Check if Docker is already installed
+if command -v docker &> /dev/null; then
+  DOCKER_VERSION=$(docker --version)
+  echo "  ℹ️  Docker already installed: ${DOCKER_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Check if running in a container (Docker-in-Docker detection)
+  if [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null; then
+    echo "  ⚠️  Running inside a container - Docker-in-Docker setup detected"
+    echo "  → Installing Docker CLI only (daemon will use host Docker)"
+  fi
+
+  # Remove any old Docker packages
+  echo "  → Removing old Docker packages (if any)..."
+  for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+    apt-get remove -y $pkg 2>/dev/null || true
+  done
+
+  # Set up Docker's official GPG key and repository
+  echo "  → Configuring Docker's official repository..."
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+
+  # Add Docker repository to sources list
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    > /etc/apt/sources.list.d/docker.list
+
+  # Install Docker Engine, CLI, containerd, and plugins
+  echo "  → Installing Docker Engine and components..."
+  apt-get update -y
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # Start and enable Docker service (skip if in container)
+  if [ ! -f /.dockerenv ] && ! grep -q docker /proc/1/cgroup 2>/dev/null; then
+    echo "  → Starting Docker service..."
+    systemctl start docker
+    systemctl enable docker
+  else
+    echo "  → Skipping Docker daemon start (running in container)"
+  fi
+
+  # Verify Docker installation
+  DOCKER_VERSION=$(docker --version)
+  echo "  → Docker installed: ${DOCKER_VERSION}"
+  if command -v docker compose &> /dev/null; then
+    echo "  → Docker Compose installed: $(docker compose version)"
+  fi
+
+  # Add docker group for non-root access (users will need to be added manually)
+  echo "  → Docker group configured for non-root access"
+  echo "  → Note: Add users to docker group with: sudo usermod -aG docker <username>"
+fi
+echo "✅ Docker & Docker CE installation completed"
+echo ""
+
+# ===============================================================
+# 9. NODE VERSION MANAGER (NVM) - GLOBAL INSTALLATION
+# ===============================================================
+echo "📦 [9/14] Installing Node Version Manager (nvm)..."
 echo "-------------------------------------------------"
 
 # Set up global nvm directory (accessible to all users)
-echo "  → Setting up global nvm directory: /opt/nvm"
 export NVM_DIR="/opt/nvm"
-mkdir -p "$NVM_DIR"
 
-# Download and install nvm globally
-echo "  → Downloading and installing nvm ${NVM_VERSION}..."
-curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash
+# Check if nvm is already installed
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  echo "  ℹ️  NVM already installed in ${NVM_DIR}"
+  echo "  → Skipping installation"
+  # Load nvm in current shell session
+  . "$NVM_DIR/nvm.sh"
+else
+  echo "  → Setting up global nvm directory: /opt/nvm"
+  mkdir -p "$NVM_DIR"
 
-# Load nvm in current shell session
-echo "  → Loading nvm in current shell..."
-. "$NVM_DIR/nvm.sh"
+  # Download and install nvm globally
+  echo "  → Downloading and installing nvm ${NVM_VERSION}..."
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash
+
+  # Load nvm in current shell session
+  echo "  → Loading nvm in current shell..."
+  . "$NVM_DIR/nvm.sh"
+fi
 
 echo "✅ Node Version Manager (nvm) installation completed"
 echo ""
 
 # ===============================================================
-# 7. NODE.JS 20 LTS - GLOBAL INSTALLATION VIA NVM
+# 10. NODE.JS 20 LTS - GLOBAL INSTALLATION VIA NVM
 # ===============================================================
-echo "🟢 [7/11] Installing Node.js 20 LTS..."
+echo "🟢 [10/14] Installing Node.js 20 LTS..."
 echo "-------------------------------------"
 
-# Install Node.js 20 LTS and set as default
-echo "  → Installing Node.js 20 LTS via nvm..."
-nvm install 20
-nvm alias default 20
+# Check if Node.js 20 is already installed
+if command -v node &> /dev/null; then
+  NODE_VERSION=$(node -v)
+  echo "  ℹ️  Node.js already installed: ${NODE_VERSION}"
+  # Check if it's version 20
+  if [[ "$NODE_VERSION" == v20* ]]; then
+    echo "  → Node.js 20 LTS already installed, skipping"
+  else
+    echo "  → Installing Node.js 20 LTS via nvm..."
+    nvm install 20
+    nvm alias default 20
+    NODE_VERSION=$(node -v)
+    echo "  → Node.js installed: ${NODE_VERSION}"
+  fi
+else
+  # Install Node.js 20 LTS and set as default
+  echo "  → Installing Node.js 20 LTS via nvm..."
+  nvm install 20
+  nvm alias default 20
 
-# Verify Node.js installation
-NODE_VERSION=$(node -v)
-echo "  → Node.js installed: ${NODE_VERSION}"
+  # Verify Node.js installation
+  NODE_VERSION=$(node -v)
+  echo "  → Node.js installed: ${NODE_VERSION}"
+fi
 echo "✅ Node.js 20 LTS installation completed"
 echo ""
 
 # ===============================================================
-# 8. NPM PACKAGE MANAGER - INCLUDED WITH NODE.JS
+# 11. NPM PACKAGE MANAGER - INCLUDED WITH NODE.JS
 # ===============================================================
-echo "📦 [8/11] Configuring NPM Package Manager..."
+echo "📦 [11/14] Configuring NPM Package Manager..."
 echo "--------------------------------------------"
 
 # NPM is automatically installed with Node.js, just verify and show version
@@ -210,10 +433,10 @@ echo "✅ NPM Package Manager configuration completed"
 echo ""
 
 # ===============================================================
-# 9. GLOBAL ENVIRONMENT CONFIGURATION
+# 12. GLOBAL ENVIRONMENT CONFIGURATION
 # ===============================================================
-echo "🌍 [9/10] Configuring Global Environment Access..."
-echo "------------------------------------------------"
+echo "🌍 [12/14] Configuring Global Environment Access..."
+echo "--------------------------------------------------"
 
 # Make nvm and Node.js globally available to all users via profile.d
 echo "  → Creating global environment configuration..."
@@ -244,20 +467,55 @@ echo "✅ Global environment configuration completed"
 echo ""
 
 # ===============================================================
-# 10. CDK FOR TERRAFORM (CDKTF-CLI) - GLOBAL NPM PACKAGE
+# 13. CDK FOR TERRAFORM (CDKTF-CLI) - GLOBAL NPM PACKAGE
 # ===============================================================
-echo "🏗️  [10/10] Installing CDK for Terraform (cdktf-cli)..."
-echo "-----------------------------------------------------"
+echo "🏗️  [13/14] Installing CDK for Terraform (cdktf-cli)..."
+echo "-------------------------------------------------------"
 
-# Load global nvm environment and install cdktf globally
-echo "  → Installing cdktf-cli as global NPM package..."
+# Load global nvm environment
 . "/opt/nvm/nvm.sh"
-npm install -g cdktf-cli
 
-# Verify cdktf installation
-CDKTF_VERSION=$(cdktf --version)
-echo "  → CDK for Terraform installed: ${CDKTF_VERSION}"
+# Check if cdktf is already installed
+if command -v cdktf &> /dev/null; then
+  CDKTF_VERSION=$(cdktf --version)
+  echo "  ℹ️  CDK for Terraform already installed: ${CDKTF_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Install cdktf globally
+  echo "  → Installing cdktf-cli as global NPM package..."
+  npm install -g cdktf-cli
+
+  # Verify cdktf installation
+  CDKTF_VERSION=$(cdktf --version)
+  echo "  → CDK for Terraform installed: ${CDKTF_VERSION}"
+fi
 echo "✅ CDK for Terraform (cdktf-cli) installation completed"
+echo ""
+
+# ===============================================================
+# 14. MARKDOWN TO PDF CONVERTER (MDPDF) - GLOBAL NPM PACKAGE
+# ===============================================================
+echo "📄 [14/14] Installing Markdown to PDF Converter (mdpdf)..."
+echo "---------------------------------------------------------"
+
+# Load global nvm environment
+. "/opt/nvm/nvm.sh"
+
+# Check if mdpdf is already installed
+if command -v mdpdf &> /dev/null; then
+  MDPDF_VERSION=$(mdpdf --version 2>&1 || echo "installed")
+  echo "  ℹ️  Markdown to PDF converter already installed: ${MDPDF_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Install mdpdf globally
+  echo "  → Installing mdpdf as global NPM package..."
+  npm install -g mdpdf
+
+  # Verify mdpdf installation
+  MDPDF_VERSION=$(mdpdf --version 2>&1 || echo "installed")
+  echo "  → Markdown to PDF converter installed: ${MDPDF_VERSION}"
+fi
+echo "✅ Markdown to PDF converter (mdpdf) installation completed"
 echo ""
 
 # ===============================================================
@@ -273,13 +531,20 @@ echo "------------------------------"
 . /opt/nvm/nvm.sh
 
 echo "🐍 PYTHON:     $(python3 --version)"
+echo "🎨 DIAGRAMS:   $(python3 -c 'import diagrams; print("installed")' 2>&1 || echo 'not installed')"
+echo "📊 GRAPHVIZ:   $(dot -V 2>&1 | head -n 1)"
 echo "☁️  AWS CLI:    $(aws --version | cut -d' ' -f1-2)"
+echo "☁️  LIGHTSAIL:  $(lightsailctl --version 2>&1 | head -n 1 || echo 'installed (version check may not work)')"
 echo "⚡ .NET SDK:    $(dotnet --version) ($(dotnet --list-sdks | wc -l) SDK(s) installed)"
 echo "🏗️  TERRAFORM:  $(terraform -version | head -n 1)"
+echo "🐳 DOCKER:     $(docker --version)"
+echo "🐳 COMPOSE:    $(docker compose version)"
+echo "🌐 CHROMIUM:   $(chromium-browser --version 2>&1 || chromium --version 2>&1 | head -n 1)"
 echo "📦 NVM:        $(nvm --version)"
 echo "🟢 NODE.JS:    $(node -v)"
 echo "📦 NPM:        $(npm -v)"
 echo "🏗️  CDKTF:      $(cdktf --version)"
+echo "📄 MDPDF:      $(mdpdf --version 2>&1 || echo 'installed')"
 echo ""
 
 echo "🌍 Global Environment:"

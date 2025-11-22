@@ -1,0 +1,18 @@
+{
+  "resourceTypes": [
+    "aws_lightsail_*",
+    "aws_secretsmanager_*",
+    "aws_iam_*",
+    "aws_s3_*",
+    "aws_ec2_*",
+    "aws_cloudfront_*"
+  ],
+  "dataSources": [
+    "aws_lightsail_*",
+    "aws_secretsmanager_*",
+    "aws_iam_*",
+    "aws_s3_*",
+    "aws_ec2_*",
+    "aws_cloudfront_*"
+  ]
+}
