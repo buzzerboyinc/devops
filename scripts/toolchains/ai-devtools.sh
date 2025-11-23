@@ -160,9 +160,56 @@ fi
 echo ""
 
 # ===============================================================
-# 2. OPENAI CODEX
+# 2. MKDOCS - DOCUMENTATION SITE GENERATOR
 # ===============================================================
-echo "🧠 [2/5] Installing OpenAI Codex..."
+echo "📚 [2/6] Installing MkDocs..."
+echo "-----------------------------"
+echo "  📝 Description: Static site generator for project documentation"
+echo "  🌐 Website: https://www.mkdocs.org"
+echo ""
+
+# Check if MkDocs is already installed
+if command -v mkdocs &> /dev/null; then
+  MKDOCS_VERSION=$(mkdocs --version | head -n 1)
+  echo "  ℹ️  MkDocs already installed: $MKDOCS_VERSION"
+  echo "  ✅ Status: Found existing installation"
+  echo "  → Skipping installation"
+else
+  echo "  🔍 Status: Not found, proceeding with installation..."
+  
+  # Check if we have sudo access for system installation
+  if [ "$EUID" -ne 0 ]; then
+    echo "  ⚠️  Warning: MkDocs installation requires sudo privileges"
+    echo "  💡 Solution: Please run this script with sudo to install MkDocs"
+    echo "  → Skipping MkDocs installation..."
+  else
+    echo "  → Installing MkDocs from apt repository..."
+    apt-get update -y > /dev/null 2>&1
+    apt-get install -y mkdocs
+    
+    # Verify installation
+    if command -v mkdocs &> /dev/null; then
+      MKDOCS_VERSION=$(mkdocs --version | head -n 1)
+      echo ""
+      echo "  ✅ MkDocs successfully installed!"
+      echo "     Version: $MKDOCS_VERSION"
+      echo "     Command: mkdocs"
+      echo "     Usage: mkdocs new [project-name]"
+      echo "     Serve: mkdocs serve"
+      echo "     Build: mkdocs build"
+    else
+      echo ""
+      echo "  ❌ Error: MkDocs installation failed"
+      echo "     Check package manager logs for details"
+    fi
+  fi
+fi
+echo ""
+
+# ===============================================================
+# 3. OPENAI CODEX
+# ===============================================================
+echo "🧠 [3/6] Installing OpenAI Codex..."
 echo "-----------------------------------"
 echo "  📝 Description: OpenAI's AI code completion and generation tool"
 echo "  🌐 Website: https://openai.com/blog/openai-codex"
@@ -209,9 +256,9 @@ fi
 echo ""
 
 # ===============================================================
-# 3. ANTHROPIC CLAUDE CODE
+# 4. ANTHROPIC CLAUDE CODE
 # ===============================================================
-echo "🎯 [3/5] Installing Anthropic Claude Code..."
+echo "🎯 [4/6] Installing Anthropic Claude Code..."
 echo "--------------------------------------------"
 echo "  📝 Description: Anthropic's Claude AI coding assistant"
 echo "  🌐 Website: https://www.anthropic.com"
@@ -258,9 +305,9 @@ fi
 echo ""
 
 # ===============================================================
-# 4. GITHUB COPILOT CLI
+# 5. GITHUB COPILOT CLI
 # ===============================================================
-echo "🤖 [4/5] Installing GitHub Copilot CLI..."
+echo "🤖 [5/6] Installing GitHub Copilot CLI..."
 echo "-----------------------------------------"
 echo "  📝 Description: AI-powered command line assistant from GitHub"
 echo "  🌐 Website: https://githubnext.com/projects/copilot-cli"
@@ -319,9 +366,9 @@ fi
 echo ""
 
 # ===============================================================
-# 5. MARKDOWN TO PDF CONVERTER (MDPDF)
+# 6. MARKDOWN TO PDF CONVERTER (MDPDF)
 # ===============================================================
-echo "📄 [5/5] Installing Markdown to PDF Converter (mdpdf)..."
+echo "📄 [6/6] Installing Markdown to PDF Converter (mdpdf)..."
 echo "--------------------------------------------------------"
 echo "  📝 Description: Convert Markdown files to PDF with styling"
 echo "  🌐 Package: mdpdf"
@@ -377,6 +424,17 @@ if command -v code &> /dev/null; then
   VSCODE_VER="$(code --version | head -n 1)"
   VSCODE_CMD="code"
   VSCODE_LOCATION="$(which code)"
+fi
+
+MKDOCS_STATUS="❌"
+MKDOCS_VER="Not installed"
+MKDOCS_CMD=""
+MKDOCS_LOCATION=""
+if command -v mkdocs &> /dev/null; then
+  MKDOCS_STATUS="✅"
+  MKDOCS_VER="$(mkdocs --version | head -n 1)"
+  MKDOCS_CMD="mkdocs"
+  MKDOCS_LOCATION="$(which mkdocs)"
 fi
 
 CODEX_STATUS="❌"
@@ -439,6 +497,17 @@ echo "└───────────────────────�
 echo ""
 
 echo "┌────────────────────────────────────────────────────────────────┐"
+echo "│  📚  MKDOCS                                                    │"
+echo "├────────────────────────────────────────────────────────────────┤"
+echo "│  Status:   $MKDOCS_STATUS $MKDOCS_VER"
+[ -n "$MKDOCS_CMD" ] && echo "│  Command:  $MKDOCS_CMD"
+[ -n "$MKDOCS_LOCATION" ] && echo "│  Location: $MKDOCS_LOCATION"
+[ "$MKDOCS_STATUS" = "✅" ] && echo "│  Features: Documentation site generator, Material theme support"
+[ "$MKDOCS_STATUS" = "✅" ] && echo "│  Usage:    mkdocs new [project] | mkdocs serve | mkdocs build"
+echo "└────────────────────────────────────────────────────────────────┘"
+echo ""
+
+echo "┌────────────────────────────────────────────────────────────────┐"
 echo "│  🧠  OPENAI CODEX                                              │"
 echo "├────────────────────────────────────────────────────────────────┤"
 echo "│  Status:   $CODEX_STATUS $CODEX_VER"
@@ -484,8 +553,9 @@ echo ""
 
 # Count successful installations
 SUCCESS_COUNT=0
-TOTAL_COUNT=5
+TOTAL_COUNT=6
 [ "$VSCODE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
+[ "$MKDOCS_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$CODEX_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$CLAUDE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$MDPDF_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
@@ -500,6 +570,7 @@ if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
   echo ""
   echo "  📊 Installation Summary:"
   echo "     • Visual Studio Code .......... ✅ Ready"
+  echo "     • MkDocs ...................... ✅ Ready"
   echo "     • OpenAI Codex ................ ✅ Ready"
   echo "     • Anthropic Claude Code ....... ✅ Ready"
   echo "     • GitHub Copilot CLI .......... ✅ Ready"
@@ -539,6 +610,16 @@ if [ "$VSCODE_STATUS" = "✅" ]; then
   echo "     • Open current folder: code ."
   echo "     • Open specific file:  code myfile.txt"
   echo "     • Install extensions:  code --install-extension <ext-id>"
+  echo ""
+fi
+
+if [ "$MKDOCS_STATUS" = "✅" ]; then
+  echo "  📚 MkDocs:"
+  echo "     • Create new project:  mkdocs new my-project"
+  echo "     • Start dev server:    mkdocs serve"
+  echo "     • Build static site:   mkdocs build"
+  echo "     • Deploy to GitHub:    mkdocs gh-deploy"
+  echo "     • Config file:         mkdocs.yml"
   echo ""
 fi
 
