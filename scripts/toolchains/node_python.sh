@@ -99,11 +99,8 @@ apt-get update -y
 echo "  → Installing core system packages..."
 apt-get update -y
 
-# Try to upgrade existing packages, but don't fail if there are issues
-echo "  → Upgrading existing packages (optional)..."
-set +e  # Temporarily disable exit on error
-yes | apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || echo "  ⚠️  Some packages couldn't be upgraded, continuing..."
-set -e  # Re-enable exit on error
+# Skip upgrade to avoid issues with partially installed packages
+# Users can run 'apt-get upgrade' manually if needed
 
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
