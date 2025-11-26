@@ -94,7 +94,7 @@ apt-get update -y
 # Install essential system packages and build dependencies
 echo "  → Installing core system packages..."
 apt-get update -y
-apt-get upgrade 
+apt-get upgrade -y
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
   git curl tar wget unzip jq
