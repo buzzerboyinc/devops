@@ -33,6 +33,42 @@ set -euo pipefail
 exec > >(tee /var/log/dev-environment-setup.log) 2>&1
 
 # ===============================================================
+# HELPER FUNCTIONS
+# ===============================================================
+
+# Wait for apt/dpkg locks to be released
+wait_for_apt_lock() {
+  local max_wait=300  # Maximum wait time in seconds (5 minutes)
+  local wait_time=0
+  local check_interval=2
+  
+  while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+        fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+        fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+        fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    
+    if [ $wait_time -eq 0 ]; then
+      echo "  ⏳ Waiting for other package managers to finish..."
+    fi
+    
+    if [ $wait_time -ge $max_wait ]; then
+      echo "  ⚠️  Warning: Timeout waiting for package manager locks"
+      echo "  → You may need to manually kill blocking processes or remove stale locks"
+      return 1
+    fi
+    
+    sleep $check_interval
+    wait_time=$((wait_time + check_interval))
+  done
+  
+  if [ $wait_time -gt 0 ]; then
+    echo "  ✓ Package manager is now available"
+  fi
+  
+  return 0
+}
+
+# ===============================================================
 # CONFIGURATION VARIABLES
 # ===============================================================
 NVM_VERSION="v0.39.7"      # Node Version Manager installer version
@@ -47,6 +83,9 @@ echo ""
 echo "📦 [1/11] Installing System Dependencies & Build Tools..."
 echo "-------------------------------------------------------"
 export DEBIAN_FRONTEND=noninteractive
+
+# Wait for any existing package manager operations to complete
+wait_for_apt_lock
 
 # Update package index
 echo "  → Updating package index..."
