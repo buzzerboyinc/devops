@@ -8,10 +8,13 @@
 #
 #  Installation Components:
 #    1. Visual Studio Code - Latest stable version
-#    2. OpenAI Codex - AI code completion and generation
-#    3. Anthropic Claude Code - AI coding assistant
-#    4. GitHub Copilot CLI - AI pair programming from command line
-#    5. Markdown to PDF Converter (mdpdf) - Convert markdown to PDF
+#    2. Chromium Browser - Required for Mermaid CLI rendering
+#    3. MkDocs - Documentation site generator
+#    4. Mermaid CLI - Diagram generation from text
+#    5. OpenAI Codex - AI code completion and generation
+#    6. Anthropic Claude Code - AI coding assistant
+#    7. GitHub Copilot CLI - AI pair programming from command line
+#    8. Markdown to PDF Converter (md-to-pdf) - Convert markdown to PDF with image support
 #
 #  Note: AI packages may require authentication or special access.
 #
@@ -160,9 +163,87 @@ fi
 echo ""
 
 # ===============================================================
-# 2. MKDOCS - DOCUMENTATION SITE GENERATOR
+# 2. CHROMIUM BROWSER - REQUIRED FOR MERMAID CLI
 # ===============================================================
-echo "📚 [2/6] Installing MkDocs..."
+echo "🌐 [2/8] Installing Chromium Browser..."
+echo "----------------------------------------"
+echo "  📝 Description: Headless browser required for Mermaid CLI diagram rendering"
+echo "  🌐 Website: https://www.chromium.org"
+echo ""
+
+# Check if Chromium is already installed
+if command -v chromium-browser &> /dev/null || command -v chromium &> /dev/null; then
+  CHROMIUM_VERSION=$(chromium-browser --version 2>/dev/null || chromium --version 2>/dev/null || echo "Chromium")
+  echo "  ℹ️  Chromium already installed: $CHROMIUM_VERSION"
+  echo "  ✅ Status: Found existing installation"
+  echo "  → Skipping installation"
+else
+  echo "  🔍 Status: Not found, proceeding with installation..."
+  
+  # Check if we have sudo access for system installation
+  if [ "$EUID" -ne 0 ]; then
+    echo "  ⚠️  Warning: Chromium installation requires sudo privileges"
+    echo "  💡 Solution: Please run this script with sudo to install Chromium"
+    echo "  → Skipping Chromium installation..."
+  else
+    echo "  → Installing Chromium and dependencies from apt repository..."
+    apt-get update -y > /dev/null 2>&1
+    apt-get install -y chromium-browser \
+      ca-certificates \
+      fonts-liberation \
+      libasound2 \
+      libatk-bridge2.0-0 \
+      libatk1.0-0 \
+      libcairo2 \
+      libcups2 \
+      libdbus-1-3 \
+      libexpat1 \
+      libfontconfig1 \
+      libgbm1 \
+      libglib2.0-0 \
+      libgtk-3-0 \
+      libnspr4 \
+      libnss3 \
+      libpango-1.0-0 \
+      libpangocairo-1.0-0 \
+      libx11-6 \
+      libx11-xcb1 \
+      libxcb1 \
+      libxcomposite1 \
+      libxcursor1 \
+      libxdamage1 \
+      libxext6 \
+      libxfixes3 \
+      libxi6 \
+      libxrandr2 \
+      libxrender1 \
+      libxss1 \
+      libxtst6 \
+      lsb-release \
+      wget \
+      xdg-utils
+    
+    # Verify installation
+    if command -v chromium-browser &> /dev/null || command -v chromium &> /dev/null; then
+      CHROMIUM_VERSION=$(chromium-browser --version 2>/dev/null || chromium --version 2>/dev/null)
+      echo ""
+      echo "  ✅ Chromium successfully installed!"
+      echo "     Version: $CHROMIUM_VERSION"
+      echo "     Command: chromium-browser or chromium"
+      echo "     Purpose: Required for Mermaid CLI diagram rendering"
+    else
+      echo ""
+      echo "  ❌ Error: Chromium installation failed"
+      echo "     Check package manager logs for details"
+    fi
+  fi
+fi
+echo ""
+
+# ===============================================================
+# 3. MKDOCS - DOCUMENTATION SITE GENERATOR
+# ===============================================================
+echo "📚 [3/8] Installing MkDocs..."
 echo "-----------------------------"
 echo "  📝 Description: Static site generator for project documentation"
 echo "  🌐 Website: https://www.mkdocs.org"
@@ -207,9 +288,56 @@ fi
 echo ""
 
 # ===============================================================
-# 3. OPENAI CODEX
+# 4. MERMAID CLI - DIAGRAM GENERATION FROM TEXT
 # ===============================================================
-echo "🧠 [3/6] Installing OpenAI Codex..."
+echo "📊 [4/8] Installing Mermaid CLI..."
+echo "----------------------------------"
+echo "  📝 Description: Generate diagrams and flowcharts from text definitions"
+echo "  🌐 Website: https://mermaid.js.org"
+echo "  📦 Package: @mermaid-js/mermaid-cli"
+echo ""
+
+# Check if Mermaid CLI is already installed
+if command -v mmdc &> /dev/null; then
+  MERMAID_VERSION=$(mmdc --version 2>&1 || echo "installed")
+  echo "  ℹ️  Mermaid CLI already installed: $MERMAID_VERSION"
+  echo "  ✅ Status: Found existing installation"
+  echo "  → Skipping installation"
+else
+  echo "  🔍 Status: Not found, proceeding with installation..."
+  echo "  → Installing @mermaid-js/mermaid-cli as global NPM package..."
+  echo ""
+  
+  if npm install -g @mermaid-js/mermaid-cli 2>&1 | grep -E "(added|up to date|mermaid-cli@)"; then
+    echo ""
+    if command -v mmdc &> /dev/null; then
+      MERMAID_VERSION=$(mmdc --version 2>&1 || echo "installed")
+      echo "  ✅ Mermaid CLI successfully installed!"
+      echo "     Version: $MERMAID_VERSION"
+      echo "     Command: mmdc"
+      echo "     Usage: mmdc -i input.mmd -o output.png"
+      echo "     Formats: PNG, SVG, PDF supported"
+      echo "     Note: Requires Chromium browser (installed above)"
+    else
+      echo "  ⚠️  Installation completed but 'mmdc' command not found"
+      echo "     Package may have been installed with different command name"
+    fi
+  else
+    echo ""
+    echo "  ❌ Error: Mermaid CLI installation failed"
+    echo "  💡 Possible solutions:"
+    echo "     • Ensure Chromium is installed (required dependency)"
+    echo "     • Check npm permissions (may need sudo for global install)"
+    echo "     • Verify network connectivity"
+    echo "     • Try: npm install -g @mermaid-js/mermaid-cli --verbose"
+  fi
+fi
+echo ""
+
+# ===============================================================
+# 5. OPENAI CODEX
+# ===============================================================
+echo "🧠 [5/8] Installing OpenAI Codex..."
 echo "-----------------------------------"
 echo "  📝 Description: OpenAI's AI code completion and generation tool"
 echo "  🌐 Website: https://openai.com/blog/openai-codex"
@@ -256,9 +384,9 @@ fi
 echo ""
 
 # ===============================================================
-# 4. ANTHROPIC CLAUDE CODE
+# 6. ANTHROPIC CLAUDE CODE
 # ===============================================================
-echo "🎯 [4/6] Installing Anthropic Claude Code..."
+echo "🎯 [6/8] Installing Anthropic Claude Code..."
 echo "--------------------------------------------"
 echo "  📝 Description: Anthropic's Claude AI coding assistant"
 echo "  🌐 Website: https://www.anthropic.com"
@@ -305,9 +433,9 @@ fi
 echo ""
 
 # ===============================================================
-# 5. GITHUB COPILOT CLI
+# 7. GITHUB COPILOT CLI
 # ===============================================================
-echo "🤖 [5/6] Installing GitHub Copilot CLI..."
+echo "🤖 [7/8] Installing GitHub Copilot CLI..."
 echo "-----------------------------------------"
 echo "  📝 Description: AI-powered command line assistant from GitHub"
 echo "  🌐 Website: https://githubnext.com/projects/copilot-cli"
@@ -366,41 +494,42 @@ fi
 echo ""
 
 # ===============================================================
-# 6. MARKDOWN TO PDF CONVERTER (MDPDF)
+# 8. MARKDOWN TO PDF CONVERTER (MD-TO-PDF)
 # ===============================================================
-echo "📄 [6/6] Installing Markdown to PDF Converter (mdpdf)..."
-echo "--------------------------------------------------------"
-echo "  📝 Description: Convert Markdown files to PDF with styling"
-echo "  🌐 Package: mdpdf"
-echo "  💡 Use case: Documentation, reports, README exports"
+echo "📄 [8/8] Installing Markdown to PDF Converter (md-to-pdf)..."
+echo "------------------------------------------------------------"
+echo "  📝 Description: Convert Markdown files to PDF with proper image handling"
+echo "  🌐 Package: md-to-pdf"
+echo "  💡 Use case: Documentation, reports, README exports with embedded images"
 echo ""
 
-# Check if mdpdf is already installed
-if command -v mdpdf &> /dev/null; then
-  MDPDF_VERSION=$(mdpdf --version 2>&1 || echo "installed")
-  echo "  ℹ️  Markdown to PDF converter already installed: $MDPDF_VERSION"
+# Check if md-to-pdf is already installed
+if command -v md-to-pdf &> /dev/null; then
+  MDTOPDF_VERSION=$(md-to-pdf --version 2>&1 || echo "installed")
+  echo "  ℹ️  md-to-pdf already installed: $MDTOPDF_VERSION"
   echo "  ✅ Status: Found existing installation"
   echo "  → Skipping installation"
 else
   echo "  🔍 Status: Not found, proceeding with installation..."
-  echo "  → Installing mdpdf as global NPM package..."
+  echo "  → Installing md-to-pdf as global NPM package..."
   echo ""
   
-  if npm install -g mdpdf 2>&1 | grep -E "(added|up to date|mdpdf@)"; then
+  if npm install -g md-to-pdf 2>&1 | grep -E "(added|up to date|md-to-pdf@)"; then
     echo ""
-    MDPDF_VERSION=$(mdpdf --version 2>&1 || echo "installed")
-    echo "  ✅ Markdown to PDF converter successfully installed!"
-    echo "     Version: $MDPDF_VERSION"
-    echo "     Command: mdpdf"
-    echo "     Usage: mdpdf <input.md> [output.pdf]"
-    echo "     Example: mdpdf README.md documentation.pdf"
+    MDTOPDF_VERSION=$(md-to-pdf --version 2>&1 || echo "installed")
+    echo "  ✅ md-to-pdf successfully installed!"
+    echo "     Version: $MDTOPDF_VERSION"
+    echo "     Command: md-to-pdf"
+    echo "     Usage: md-to-pdf input.md [--output output.pdf]"
+    echo "     Features: Supports images, code blocks, tables, and custom CSS"
+    echo "     Example: md-to-pdf README.md --output documentation.pdf"
   else
     echo ""
-    echo "  ❌ Error: mdpdf installation failed"
+    echo "  ❌ Error: md-to-pdf installation failed"
     echo "  💡 Possible solutions:"
     echo "     • Check npm permissions (may need sudo for global install)"
     echo "     • Verify network connectivity"
-    echo "     • Try: npm install -g mdpdf --verbose"
+    echo "     • Try: npm install -g md-to-pdf --verbose"
   fi
 fi
 echo ""
@@ -426,6 +555,22 @@ if command -v code &> /dev/null; then
   VSCODE_LOCATION="$(which code)"
 fi
 
+CHROMIUM_STATUS="❌"
+CHROMIUM_VER="Not installed"
+CHROMIUM_CMD=""
+CHROMIUM_LOCATION=""
+if command -v chromium-browser &> /dev/null; then
+  CHROMIUM_STATUS="✅"
+  CHROMIUM_VER="$(chromium-browser --version)"
+  CHROMIUM_CMD="chromium-browser"
+  CHROMIUM_LOCATION="$(which chromium-browser)"
+elif command -v chromium &> /dev/null; then
+  CHROMIUM_STATUS="✅"
+  CHROMIUM_VER="$(chromium --version)"
+  CHROMIUM_CMD="chromium"
+  CHROMIUM_LOCATION="$(which chromium)"
+fi
+
 MKDOCS_STATUS="❌"
 MKDOCS_VER="Not installed"
 MKDOCS_CMD=""
@@ -435,6 +580,17 @@ if command -v mkdocs &> /dev/null; then
   MKDOCS_VER="$(mkdocs --version | head -n 1)"
   MKDOCS_CMD="mkdocs"
   MKDOCS_LOCATION="$(which mkdocs)"
+fi
+
+MERMAID_STATUS="❌"
+MERMAID_VER="Not installed"
+MERMAID_CMD=""
+MERMAID_LOCATION=""
+if command -v mmdc &> /dev/null; then
+  MERMAID_STATUS="✅"
+  MERMAID_VER="$(mmdc --version 2>&1 | head -n 1 || echo 'Installed')"
+  MERMAID_CMD="mmdc"
+  MERMAID_LOCATION="$(which mmdc)"
 fi
 
 CODEX_STATUS="❌"
@@ -475,15 +631,15 @@ elif command -v github-copilot-cli &> /dev/null; then
   COPILOT_LOCATION="$(which github-copilot-cli)"
 fi
 
-MDPDF_STATUS="❌"
-MDPDF_VER="Not installed"
-MDPDF_CMD=""
-MDPDF_LOCATION=""
-if command -v mdpdf &> /dev/null; then
-  MDPDF_STATUS="✅"
-  MDPDF_VER="$(mdpdf --version 2>&1 | head -n 1 || echo 'Installed')"
-  MDPDF_CMD="mdpdf"
-  MDPDF_LOCATION="$(which mdpdf)"
+MDTOPDF_STATUS="❌"
+MDTOPDF_VER="Not installed"
+MDTOPDF_CMD=""
+MDTOPDF_LOCATION=""
+if command -v md-to-pdf &> /dev/null; then
+  MDTOPDF_STATUS="✅"
+  MDTOPDF_VER="$(md-to-pdf --version 2>&1 | head -n 1 || echo 'Installed')"
+  MDTOPDF_CMD="md-to-pdf"
+  MDTOPDF_LOCATION="$(which md-to-pdf)"
 fi
 
 echo "┌────────────────────────────────────────────────────────────────┐"
@@ -497,6 +653,16 @@ echo "└───────────────────────�
 echo ""
 
 echo "┌────────────────────────────────────────────────────────────────┐"
+echo "│  🌐  CHROMIUM BROWSER                                          │"
+echo "├────────────────────────────────────────────────────────────────┤"
+echo "│  Status:   $CHROMIUM_STATUS $CHROMIUM_VER"
+[ -n "$CHROMIUM_CMD" ] && echo "│  Command:  $CHROMIUM_CMD"
+[ -n "$CHROMIUM_LOCATION" ] && echo "│  Location: $CHROMIUM_LOCATION"
+[ "$CHROMIUM_STATUS" = "✅" ] && echo "│  Purpose:  Required dependency for Mermaid CLI diagram rendering"
+echo "└────────────────────────────────────────────────────────────────┘"
+echo ""
+
+echo "┌────────────────────────────────────────────────────────────────┐"
 echo "│  📚  MKDOCS                                                    │"
 echo "├────────────────────────────────────────────────────────────────┤"
 echo "│  Status:   $MKDOCS_STATUS $MKDOCS_VER"
@@ -504,6 +670,17 @@ echo "│  Status:   $MKDOCS_STATUS $MKDOCS_VER"
 [ -n "$MKDOCS_LOCATION" ] && echo "│  Location: $MKDOCS_LOCATION"
 [ "$MKDOCS_STATUS" = "✅" ] && echo "│  Features: Documentation site generator, Material theme support"
 [ "$MKDOCS_STATUS" = "✅" ] && echo "│  Usage:    mkdocs new [project] | mkdocs serve | mkdocs build"
+echo "└────────────────────────────────────────────────────────────────┘"
+echo ""
+
+echo "┌────────────────────────────────────────────────────────────────┐"
+echo "│  📊  MERMAID CLI                                               │"
+echo "├────────────────────────────────────────────────────────────────┤"
+echo "│  Status:   $MERMAID_STATUS $MERMAID_VER"
+[ -n "$MERMAID_CMD" ] && echo "│  Command:  $MERMAID_CMD"
+[ -n "$MERMAID_LOCATION" ] && echo "│  Location: $MERMAID_LOCATION"
+[ "$MERMAID_STATUS" = "✅" ] && echo "│  Features: Generate diagrams from text (flowcharts, sequences, etc.)"
+[ "$MERMAID_STATUS" = "✅" ] && echo "│  Usage:    mmdc -i diagram.mmd -o diagram.png"
 echo "└────────────────────────────────────────────────────────────────┘"
 echo ""
 
@@ -543,22 +720,24 @@ echo ""
 echo "┌────────────────────────────────────────────────────────────────┐"
 echo "│  📄  MARKDOWN TO PDF CONVERTER                                 │"
 echo "├────────────────────────────────────────────────────────────────┤"
-echo "│  Status:   $MDPDF_STATUS $MDPDF_VER"
-[ -n "$MDPDF_CMD" ] && echo "│  Command:  $MDPDF_CMD"
-[ -n "$MDPDF_LOCATION" ] && echo "│  Location: $MDPDF_LOCATION"
-[ "$MDPDF_STATUS" = "✅" ] && echo "│  Usage:    mdpdf <input.md> [output.pdf]"
-[ "$MDPDF_STATUS" = "✅" ] && echo "│  Example:  mdpdf README.md documentation.pdf"
+echo "│  Status:   $MDTOPDF_STATUS $MDTOPDF_VER"
+[ -n "$MDTOPDF_CMD" ] && echo "│  Command:  $MDTOPDF_CMD"
+[ -n "$MDTOPDF_LOCATION" ] && echo "│  Location: $MDTOPDF_LOCATION"
+[ "$MDTOPDF_STATUS" = "✅" ] && echo "│  Usage:    md-to-pdf input.md --output output.pdf"
+[ "$MDTOPDF_STATUS" = "✅" ] && echo "│  Features: Supports images, code blocks, tables, custom CSS"
 echo "└────────────────────────────────────────────────────────────────┘"
 echo ""
 
 # Count successful installations
 SUCCESS_COUNT=0
-TOTAL_COUNT=6
+TOTAL_COUNT=8
 [ "$VSCODE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
+[ "$CHROMIUM_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$MKDOCS_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
+[ "$MERMAID_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$CODEX_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$CLAUDE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$MDPDF_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
+[ "$MDTOPDF_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 [ "$COPILOT_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
 
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -570,7 +749,9 @@ if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
   echo ""
   echo "  📊 Installation Summary:"
   echo "     • Visual Studio Code .......... ✅ Ready"
+  echo "     • Chromium Browser ............ ✅ Ready"
   echo "     • MkDocs ...................... ✅ Ready"
+  echo "     • Mermaid CLI ................. ✅ Ready"
   echo "     • OpenAI Codex ................ ✅ Ready"
   echo "     • Anthropic Claude Code ....... ✅ Ready"
   echo "     • GitHub Copilot CLI .......... ✅ Ready"
@@ -623,6 +804,16 @@ if [ "$MKDOCS_STATUS" = "✅" ]; then
   echo ""
 fi
 
+if [ "$MERMAID_STATUS" = "✅" ]; then
+  echo "  📊 Mermaid CLI:"
+  echo "     • Generate diagram:    mmdc -i diagram.mmd -o output.png"
+  echo "     • SVG output:          mmdc -i diagram.mmd -o output.svg"
+  echo "     • PDF output:          mmdc -i diagram.mmd -o output.pdf"
+  echo "     • Multiple files:      mmdc -i folder/*.mmd"
+  echo "     • Documentation:       https://mermaid.js.org"
+  echo ""
+fi
+
 if [ "$CODEX_STATUS" = "✅" ]; then
   echo "  🧠 OpenAI Codex:"
   echo "     • Check version:       codex --version"
@@ -651,11 +842,13 @@ if [ "$COPILOT_STATUS" = "✅" ]; then
   echo ""
 fi
 
-if [ "$MDPDF_STATUS" = "✅" ]; then
+if [ "$MDTOPDF_STATUS" = "✅" ]; then
   echo "  📄 Markdown to PDF:"
-  echo "     • Basic conversion:    mdpdf README.md"
-  echo "     • Custom output:       mdpdf input.md output.pdf"
-  echo "     • With styling:        mdpdf --style custom.css doc.md"
+  echo "     • Basic conversion:    md-to-pdf README.md"
+  echo "     • Custom output:       md-to-pdf input.md --output output.pdf"
+  echo "     • With CSS:            md-to-pdf doc.md --stylesheet custom.css"
+  echo "     • Config file:         md-to-pdf --config-file config.json input.md"
+  echo "     • Documentation:       https://github.com/simonhaenisch/md-to-pdf"
   echo ""
 fi
 
