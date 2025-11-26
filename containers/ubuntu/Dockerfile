@@ -3,14 +3,21 @@ FROM ubuntu:24.04
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /workspace
 
-# Copy the installation script (will be copied from parent directory during build)
-COPY node_python.sh /workspace/node_python.sh
+# Copy the installation scripts from repo root
+COPY /Repos/devops/scripts  /workspace/scripts
 
-# Make the script executable
-RUN chmod +x /workspace/node_python.sh
+# Make all shell scripts executable
+RUN find /workspace/scripts -name "*.sh" -type f -exec chmod +x {} +
 
 # Default command - run bash so we can test interactively if needed
 CMD ["/bin/bash"]

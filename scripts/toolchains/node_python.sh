@@ -54,6 +54,8 @@ apt-get update -y
 
 # Install essential system packages and build dependencies
 echo "  → Installing core system packages..."
+apt-get update -y
+apt-get upgrade 
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
   git curl tar wget unzip jq
@@ -72,9 +74,9 @@ apt-get install -y libgraphviz-dev || echo "  ⚠️  Warning: libgraphviz-dev h
 echo "  → Installing Chromium and dependencies for PDF generation..."
 # Try chromium-browser first, fall back to chromium, or skip if neither works
 if ! command -v chromium-browser &> /dev/null && ! command -v chromium &> /dev/null; then
+  # Install core Chromium dependencies (excluding audio libs that may fail on WSL)
   apt-get install -y \
     fonts-liberation \
-    libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
     libatspi2.0-0 \
@@ -92,6 +94,10 @@ if ! command -v chromium-browser &> /dev/null && ! command -v chromium &> /dev/n
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils
+  
+  # Try to install audio library (may fail on WSL, which is OK)
+  echo "  → Installing audio dependencies (optional for WSL)..."
+  apt-get install -y libasound2 || echo "  ⚠️  Warning: libasound2 not available (common on WSL, chromium will work without audio)"
   
   # Try to install chromium (don't fail if snap is unavailable or slow)
   timeout 60 apt-get install -y chromium || echo "  ⚠️  Warning: Chromium installation timed out or failed, skipping"
