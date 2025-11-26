@@ -87,6 +87,10 @@ export DEBIAN_FRONTEND=noninteractive
 # Wait for any existing package manager operations to complete
 wait_for_apt_lock
 
+# Fix any broken or partially installed packages
+echo "  → Checking for broken packages..."
+dpkg --configure -a 2>/dev/null || true
+
 # Update package index
 echo "  → Updating package index..."
 apt-get update -y
@@ -94,7 +98,7 @@ apt-get update -y
 # Install essential system packages and build dependencies
 echo "  → Installing core system packages..."
 apt-get update -y
-apt-get upgrade -y
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
   git curl tar wget unzip jq
