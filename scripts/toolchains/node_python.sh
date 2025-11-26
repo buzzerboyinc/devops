@@ -97,7 +97,7 @@ if ! command -v chromium-browser &> /dev/null && ! command -v chromium &> /dev/n
   
   # Try to install audio library (may fail on WSL, which is OK)
   echo "  → Installing audio dependencies (optional for WSL)..."
-  apt-get install -y libasound2 || echo "  ⚠️  Warning: libasound2 not available (common on WSL, chromium will work without audio)"
+  apt-get install -y libasound2t64 2>/dev/null || apt-get install -y libasound2 2>/dev/null || echo "  ⚠️  Warning: libasound2/libasound2t64 not available (common on WSL, chromium will work without audio)"
   
   # Try to install chromium (don't fail if snap is unavailable or slow)
   timeout 60 apt-get install -y chromium || echo "  ⚠️  Warning: Chromium installation timed out or failed, skipping"
