@@ -98,7 +98,11 @@ apt-get update -y
 # Install essential system packages and build dependencies
 echo "  → Installing core system packages..."
 apt-get update -y
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+
+# Try to upgrade existing packages, but don't fail if there are issues
+echo "  → Upgrading existing packages (optional)..."
+apt-get upgrade -y --assume-yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>/dev/null || echo "  ⚠️  Some packages couldn't be upgraded, continuing..."
+
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
   git curl tar wget unzip jq
