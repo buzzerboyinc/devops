@@ -37,6 +37,10 @@ set -euo pipefail
 # Determine log file location based on permissions
 if [ "$EUID" -eq 0 ]; then
   LOG_FILE="/var/log/ai-devtools-setup.log"
+  # Prevent permission issues when running as root
+  export XDG_RUNTIME_DIR="/tmp/runtime-root"
+  export npm_config_cache="/tmp/npm-cache"
+  mkdir -p "$XDG_RUNTIME_DIR" "$npm_config_cache"
 else
   LOG_FILE="./ai-devtools-setup.log"
 fi
@@ -111,10 +115,11 @@ fi
 # Check if VS Code is already installed
 if command -v code &> /dev/null; then
   # Check version safely (avoid running as root which causes issues)
+  # Use timeout to prevent hanging, especially in WSL
   if [ "$EUID" -eq 0 ]; then
-    VSCODE_VERSION=$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed")
+    VSCODE_VERSION=$(timeout 10 code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed (version check timed out)")
   else
-    VSCODE_VERSION=$(code --version 2>/dev/null | head -n 1 || echo "installed")
+    VSCODE_VERSION=$(timeout 10 code --version 2>/dev/null | head -n 1 || echo "installed (version check timed out)")
   fi
   echo "  ℹ️  Visual Studio Code already installed: $VSCODE_VERSION"
   echo "  ✅ Status: Found existing installation"
@@ -164,21 +169,28 @@ else
     
     # Install VS Code with auto-approve
     echo "  → Step 5/5: Installing Visual Studio Code package..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y code
     
-    # Verify installation
-    if command -v code &> /dev/null; then
-      # Check version safely when running as root
-      VSCODE_VERSION=$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed")
-      echo ""
-      echo "  ✅ Visual Studio Code successfully installed!"
-      echo "     Version: $VSCODE_VERSION"
-      echo "     Command: code"
-      echo "     Launch: Run 'code' or 'code .' in terminal"
+    # Use timeout to prevent hanging
+    if timeout 180 bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y code"; then
+      # Verify installation
+      if command -v code &> /dev/null; then
+        # Check version safely when running as root
+        VSCODE_VERSION=$(timeout 10 code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed")
+        echo ""
+        echo "  ✅ Visual Studio Code successfully installed!"
+        echo "     Version: $VSCODE_VERSION"
+        echo "     Command: code"
+        echo "     Launch: Run 'code' or 'code .' in terminal"
+      else
+        echo ""
+        echo "  ❌ Error: VS Code installation failed"
+        echo "     Check package manager logs for details"
+      fi
     else
       echo ""
-      echo "  ❌ Error: VS Code installation failed"
-      echo "     Check package manager logs for details"
+      echo "  ⚠️  VS Code installation timed out after 3 minutes"
+      echo "  💡 You may want to install manually later"
+      echo "  → Continuing with remaining installations..."
     fi
   fi
 fi
@@ -279,35 +291,71 @@ if command -v mkdocs &> /dev/null; then
   echo "  → Skipping installation"
 else
   echo "  🔍 Status: Not found, proceeding with installation..."
+  MKDOCS_INSTALLED=false
   
-  # Check if Python and pip are available
-  if ! command -v python3 &> /dev/null || ! command -v pip3 &> /dev/null; then
-    echo "  ⚠️  Warning: Python 3 and pip3 are required for MkDocs installation"
-    echo "  💡 Solution: Install Python 3 and pip3 first"
-    echo "  → Skipping MkDocs installation..."
-  else
-    echo "  → Installing MkDocs via pip (compatible with current Python version)..."
-    
-    # Install mkdocs via pip to avoid Python version conflicts
-    if pip3 install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
-      echo ""
+  # Try Method 1: pip (standard)
+  if command -v pip &> /dev/null; then
+    echo "  → Attempt 1: Installing MkDocs via pip..."
+    if pip install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
       if command -v mkdocs &> /dev/null; then
+        MKDOCS_INSTALLED=true
         MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
-        echo "  ✅ MkDocs successfully installed!"
-        echo "     Version: $MKDOCS_VERSION"
-        echo "     Command: mkdocs"
-        echo "     Usage: mkdocs new [project-name]"
-        echo "     Serve: mkdocs serve"
-        echo "     Build: mkdocs build"
-      else
-        echo "  ⚠️  Installation completed but 'mkdocs' command not found in PATH"
-        echo "     Try: export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo "     ✓ MkDocs installed via pip: $MKDOCS_VERSION"
       fi
     else
-      echo ""
-      echo "  ❌ Error: MkDocs installation failed"
-      echo "  💡 Try manually: pip3 install --user mkdocs"
+      echo "     ✗ Installation via pip failed"
     fi
+  fi
+  
+  # Try Method 2: pip3 (if pip failed)
+  if [ "$MKDOCS_INSTALLED" = false ] && command -v pip3 &> /dev/null; then
+    echo "  → Attempt 2: Installing MkDocs via pip3..."
+    if pip3 install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
+      if command -v mkdocs &> /dev/null; then
+        MKDOCS_INSTALLED=true
+        MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
+        echo "     ✓ MkDocs installed via pip3: $MKDOCS_VERSION"
+      fi
+    else
+      echo "     ✗ Installation via pip3 failed"
+    fi
+  fi
+  
+  # Try Method 3: apt (if pip methods failed)
+  if [ "$MKDOCS_INSTALLED" = false ] && [ "$EUID" -eq 0 ]; then
+    echo "  → Attempt 3: Installing MkDocs via apt..."
+    if apt-get update -y > /dev/null 2>&1 && DEBIAN_FRONTEND=noninteractive apt-get install -y mkdocs > /dev/null 2>&1; then
+      if command -v mkdocs &> /dev/null; then
+        # Test if mkdocs actually works (might have Python compatibility issues)
+        if mkdocs --version &> /dev/null; then
+          MKDOCS_INSTALLED=true
+          MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
+          echo "     ✓ MkDocs installed via apt: $MKDOCS_VERSION"
+        else
+          echo "     ✗ MkDocs installed but has compatibility issues (likely Python version conflict)"
+        fi
+      fi
+    else
+      echo "     ✗ Installation via apt failed"
+    fi
+  fi
+  
+  # Final status
+  echo ""
+  if [ "$MKDOCS_INSTALLED" = true ]; then
+    echo "  ✅ MkDocs successfully installed!"
+    echo "     Version: $MKDOCS_VERSION"
+    echo "     Command: mkdocs"
+    echo "     Usage: mkdocs new [project-name]"
+    echo "     Serve: mkdocs serve"
+    echo "     Build: mkdocs build"
+  else
+    echo "  ⚠️  Warning: MkDocs installation failed via all methods"
+    echo "  💡 Manual installation options:"
+    echo "     • pip install mkdocs"
+    echo "     • pip3 install --user mkdocs"
+    echo "     • sudo apt install mkdocs"
+    echo "  → Continuing with remaining installations..."
   fi
 fi
 echo ""
@@ -333,7 +381,13 @@ else
   echo "  → Installing @mermaid-js/mermaid-cli as global NPM package..."
   echo ""
   
-  if npm install -g @mermaid-js/mermaid-cli 2>&1 | grep -E "(added|up to date|mermaid-cli@)"; then
+  # Set npm flags for safe root installation
+  NPM_FLAGS=""
+  if [ "$EUID" -eq 0 ]; then
+    NPM_FLAGS="--unsafe-perm"
+  fi
+  
+  if npm install -g $NPM_FLAGS @mermaid-js/mermaid-cli 2>&1 | grep -E "(added|up to date|mermaid-cli@)"; then
     echo ""
     if command -v mmdc &> /dev/null; then
       MERMAID_VERSION=$(mmdc --version 2>&1 || echo "installed")
@@ -380,8 +434,14 @@ else
   echo "  → Installing @openai/codex as global NPM package..."
   echo ""
   
+  # Set npm flags for safe root installation
+  NPM_FLAGS=""
+  if [ "$EUID" -eq 0 ]; then
+    NPM_FLAGS="--unsafe-perm"
+  fi
+  
   # Try to install
-  if npm install -g @openai/codex 2>&1 | tee /tmp/codex-install.log; then
+  if npm install -g $NPM_FLAGS @openai/codex 2>&1 | tee /tmp/codex-install.log; then
     echo ""
     if command -v codex &> /dev/null; then
       CODEX_VERSION=$(codex --version 2>&1 || echo "installed")
@@ -429,8 +489,14 @@ else
   echo "  → Installing @anthropic-ai/claude-code as global NPM package..."
   echo ""
   
+  # Set npm flags for safe root installation
+  NPM_FLAGS=""
+  if [ "$EUID" -eq 0 ]; then
+    NPM_FLAGS="--unsafe-perm"
+  fi
+  
   # Try to install
-  if npm install -g @anthropic-ai/claude-code 2>&1 | tee /tmp/claude-install.log; then
+  if npm install -g $NPM_FLAGS @anthropic-ai/claude-code 2>&1 | tee /tmp/claude-install.log; then
     echo ""
     if command -v claude &> /dev/null; then
       CLAUDE_VERSION=$(claude --version 2>&1 || echo "installed")
@@ -483,8 +549,14 @@ else
   echo "  → Installing @githubnext/github-copilot-cli as global NPM package..."
   echo ""
   
+  # Set npm flags for safe root installation
+  NPM_FLAGS=""
+  if [ "$EUID" -eq 0 ]; then
+    NPM_FLAGS="--unsafe-perm"
+  fi
+  
   # Try to install, but handle gracefully if package is not available or requires auth
-  if npm install -g @githubnext/github-copilot-cli 2>&1 | tee /tmp/copilot-install.log; then
+  if npm install -g $NPM_FLAGS @githubnext/github-copilot-cli 2>&1 | tee /tmp/copilot-install.log; then
     echo ""
     if command -v copilot &> /dev/null; then
       COPILOT_VERSION=$(copilot --version 2>&1 || echo "installed")
@@ -539,7 +611,13 @@ else
   echo "  → Installing md-to-pdf as global NPM package..."
   echo ""
   
-  if npm install -g md-to-pdf 2>&1 | grep -E "(added|up to date|md-to-pdf@)"; then
+  # Set npm flags for safe root installation
+  NPM_FLAGS=""
+  if [ "$EUID" -eq 0 ]; then
+    NPM_FLAGS="--unsafe-perm"
+  fi
+  
+  if npm install -g $NPM_FLAGS md-to-pdf 2>&1 | grep -E "(added|up to date|md-to-pdf@)"; then
     echo ""
     MDTOPDF_VERSION=$(md-to-pdf --version 2>&1 || echo "installed")
     echo "  ✅ md-to-pdf successfully installed!"
@@ -575,11 +653,11 @@ VSCODE_CMD=""
 VSCODE_LOCATION=""
 if command -v code &> /dev/null; then
   VSCODE_STATUS="✅"
-  # Safely check version when running as root
+  # Safely check version when running as root, with timeout
   if [ "$EUID" -eq 0 ]; then
-    VSCODE_VER="$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo 'installed')"
+    VSCODE_VER="$(timeout 10 code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo 'installed')"
   else
-    VSCODE_VER="$(code --version 2>/dev/null | head -n 1 || echo 'installed')"
+    VSCODE_VER="$(timeout 10 code --version 2>/dev/null | head -n 1 || echo 'installed')"
   fi
   VSCODE_CMD="code"
   VSCODE_LOCATION="$(which code)"
