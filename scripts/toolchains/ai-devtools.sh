@@ -839,14 +839,14 @@ echo ""
 # Count successful installations
 SUCCESS_COUNT=0
 TOTAL_COUNT=8
-[ "$VSCODE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$CHROMIUM_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$MKDOCS_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$MERMAID_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$CODEX_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$CLAUDE_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$MDTOPDF_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
-[ "$COPILOT_STATUS" = "✅" ] && ((SUCCESS_COUNT++))
+[ "$VSCODE_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$CHROMIUM_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$MKDOCS_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$MERMAID_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$CODEX_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$CLAUDE_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$MDTOPDF_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$COPILOT_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
@@ -886,7 +886,6 @@ else
   echo "     □ Check firewall/proxy settings"
   echo "     □ Review authentication requirements for AI tools"
   echo ""
-  exit 1
 fi
 
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -975,6 +974,10 @@ echo "╔═══════════════════════�
 echo "║                   INSTALLATION COMPLETE                        ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
+
+# Close the logging pipe to prevent hanging
+exec 1>&- 2>&-
+exec 1>/dev/tty 2>/dev/tty
 
 # Ensure script exits successfully
 exit 0
