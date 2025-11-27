@@ -273,37 +273,40 @@ echo ""
 
 # Check if MkDocs is already installed
 if command -v mkdocs &> /dev/null; then
-  MKDOCS_VERSION=$(mkdocs --version | head -n 1)
+  MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
   echo "  ℹ️  MkDocs already installed: $MKDOCS_VERSION"
   echo "  ✅ Status: Found existing installation"
   echo "  → Skipping installation"
 else
   echo "  🔍 Status: Not found, proceeding with installation..."
   
-  # Check if we have sudo access for system installation
-  if [ "$EUID" -ne 0 ]; then
-    echo "  ⚠️  Warning: MkDocs installation requires sudo privileges"
-    echo "  💡 Solution: Please run this script with sudo to install MkDocs"
+  # Check if Python and pip are available
+  if ! command -v python3 &> /dev/null || ! command -v pip3 &> /dev/null; then
+    echo "  ⚠️  Warning: Python 3 and pip3 are required for MkDocs installation"
+    echo "  💡 Solution: Install Python 3 and pip3 first"
     echo "  → Skipping MkDocs installation..."
   else
-    echo "  → Installing MkDocs from apt repository..."
-    apt-get update -y > /dev/null 2>&1
-    DEBIAN_FRONTEND=noninteractive apt-get install -y mkdocs
+    echo "  → Installing MkDocs via pip (compatible with current Python version)..."
     
-    # Verify installation
-    if command -v mkdocs &> /dev/null; then
-      MKDOCS_VERSION=$(mkdocs --version | head -n 1)
+    # Install mkdocs via pip to avoid Python version conflicts
+    if pip3 install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
       echo ""
-      echo "  ✅ MkDocs successfully installed!"
-      echo "     Version: $MKDOCS_VERSION"
-      echo "     Command: mkdocs"
-      echo "     Usage: mkdocs new [project-name]"
-      echo "     Serve: mkdocs serve"
-      echo "     Build: mkdocs build"
+      if command -v mkdocs &> /dev/null; then
+        MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
+        echo "  ✅ MkDocs successfully installed!"
+        echo "     Version: $MKDOCS_VERSION"
+        echo "     Command: mkdocs"
+        echo "     Usage: mkdocs new [project-name]"
+        echo "     Serve: mkdocs serve"
+        echo "     Build: mkdocs build"
+      else
+        echo "  ⚠️  Installation completed but 'mkdocs' command not found in PATH"
+        echo "     Try: export PATH=\"\$HOME/.local/bin:\$PATH\""
+      fi
     else
       echo ""
       echo "  ❌ Error: MkDocs installation failed"
-      echo "     Check package manager logs for details"
+      echo "  💡 Try manually: pip3 install --user mkdocs"
     fi
   fi
 fi
@@ -604,7 +607,7 @@ MKDOCS_CMD=""
 MKDOCS_LOCATION=""
 if command -v mkdocs &> /dev/null; then
   MKDOCS_STATUS="✅"
-  MKDOCS_VER="$(mkdocs --version | head -n 1)"
+  MKDOCS_VER="$(mkdocs --version 2>&1 | head -n 1 || echo 'installed')"
   MKDOCS_CMD="mkdocs"
   MKDOCS_LOCATION="$(which mkdocs)"
 fi
