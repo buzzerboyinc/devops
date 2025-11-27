@@ -975,3 +975,6 @@ echo "╔═══════════════════════�
 echo "║                   INSTALLATION COMPLETE                        ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
+
+# Ensure script exits successfully
+exit 0
