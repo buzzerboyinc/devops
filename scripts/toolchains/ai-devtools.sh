@@ -102,14 +102,35 @@ echo "  📝 Description: Microsoft's powerful, free code editor"
 echo "  🌐 Website: https://code.visualstudio.com"
 echo ""
 
+# Detect WSL environment
+IS_WSL=false
+if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null || [ -n "${WSL_DISTRO_NAME:-}" ]; then
+  IS_WSL=true
+fi
+
 # Check if VS Code is already installed
 if command -v code &> /dev/null; then
-  VSCODE_VERSION=$(code --version | head -n 1)
+  # Check version safely (avoid running as root which causes issues)
+  if [ "$EUID" -eq 0 ]; then
+    VSCODE_VERSION=$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed")
+  else
+    VSCODE_VERSION=$(code --version 2>/dev/null | head -n 1 || echo "installed")
+  fi
   echo "  ℹ️  Visual Studio Code already installed: $VSCODE_VERSION"
   echo "  ✅ Status: Found existing installation"
   echo "  → Skipping installation"
+elif [ "$IS_WSL" = true ]; then
+  echo "  🪟 WSL Environment Detected"
+  echo "  ⚠️  VS Code should be installed on Windows, not in WSL"
+  echo ""
+  echo "  � Recommended approach:"
+  echo "     1. Install VS Code on Windows from https://code.visualstudio.com"
+  echo "     2. The 'code' command will automatically work in WSL"
+  echo "     3. VS Code will seamlessly integrate with your WSL environment"
+  echo ""
+  echo "  → Skipping VS Code installation in WSL..."
 else
-  echo "  🔍 Status: Not found, proceeding with installation..."
+  echo "  �🔍 Status: Not found, proceeding with installation..."
   echo "  → Configuring Microsoft package repository..."
   
   # Check if we have sudo access for system installation
@@ -141,13 +162,14 @@ else
     apt-get update -y > /dev/null 2>&1
     echo "     ✓ Package index updated"
     
-    # Install VS Code
+    # Install VS Code with auto-approve
     echo "  → Step 5/5: Installing Visual Studio Code package..."
-    apt-get install -y code
+    DEBIAN_FRONTEND=noninteractive apt-get install -y code
     
     # Verify installation
     if command -v code &> /dev/null; then
-      VSCODE_VERSION=$(code --version | head -n 1)
+      # Check version safely when running as root
+      VSCODE_VERSION=$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo "installed")
       echo ""
       echo "  ✅ Visual Studio Code successfully installed!"
       echo "     Version: $VSCODE_VERSION"
@@ -188,7 +210,7 @@ else
   else
     echo "  → Installing Chromium and dependencies from apt repository..."
     apt-get update -y > /dev/null 2>&1
-    apt-get install -y chromium-browser \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y chromium-browser \
       ca-certificates \
       fonts-liberation \
       libasound2 \
@@ -266,7 +288,7 @@ else
   else
     echo "  → Installing MkDocs from apt repository..."
     apt-get update -y > /dev/null 2>&1
-    apt-get install -y mkdocs
+    DEBIAN_FRONTEND=noninteractive apt-get install -y mkdocs
     
     # Verify installation
     if command -v mkdocs &> /dev/null; then
@@ -550,7 +572,12 @@ VSCODE_CMD=""
 VSCODE_LOCATION=""
 if command -v code &> /dev/null; then
   VSCODE_STATUS="✅"
-  VSCODE_VER="$(code --version | head -n 1)"
+  # Safely check version when running as root
+  if [ "$EUID" -eq 0 ]; then
+    VSCODE_VER="$(code --version --no-sandbox --user-data-dir=/tmp/vscode-check 2>/dev/null | head -n 1 || echo 'installed')"
+  else
+    VSCODE_VER="$(code --version 2>/dev/null | head -n 1 || echo 'installed')"
+  fi
   VSCODE_CMD="code"
   VSCODE_LOCATION="$(which code)"
 fi
