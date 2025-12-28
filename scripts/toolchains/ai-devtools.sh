@@ -14,7 +14,9 @@
 #    5. OpenAI Codex - AI code completion and generation
 #    6. Anthropic Claude Code - AI coding assistant
 #    7. GitHub Copilot CLI - AI pair programming from command line
-#    8. Markdown to PDF Converter (md-to-pdf) - Convert markdown to PDF with image support
+#    8. ngrok - Secure tunnels to localhost
+#    9. cloudflared - Cloudflare Tunnel client
+#   10. Markdown to PDF Converter (md-to-pdf) - Convert markdown to PDF with image support
 #
 #  Note: AI packages may require authentication or special access.
 #
@@ -100,7 +102,7 @@ echo ""
 # ===============================================================
 # 1. VISUAL STUDIO CODE - LATEST STABLE
 # ===============================================================
-echo "💻 [1/3] Installing Visual Studio Code..."
+echo "💻 [1/10] Installing Visual Studio Code..."
 echo "-----------------------------------------"
 echo "  📝 Description: Microsoft's powerful, free code editor"
 echo "  🌐 Website: https://code.visualstudio.com"
@@ -199,7 +201,7 @@ echo ""
 # ===============================================================
 # 2. CHROMIUM BROWSER - REQUIRED FOR MERMAID CLI
 # ===============================================================
-echo "🌐 [2/8] Installing Chromium Browser..."
+echo "🌐 [2/10] Installing Chromium Browser..."
 echo "----------------------------------------"
 echo "  📝 Description: Headless browser required for Mermaid CLI diagram rendering"
 echo "  🌐 Website: https://www.chromium.org"
@@ -277,26 +279,45 @@ echo ""
 # ===============================================================
 # 3. MKDOCS - DOCUMENTATION SITE GENERATOR
 # ===============================================================
-echo "📚 [3/8] Installing MkDocs..."
+echo "📚 [3/10] Installing MkDocs..."
 echo "-----------------------------"
 echo "  📝 Description: Static site generator for project documentation"
 echo "  🌐 Website: https://www.mkdocs.org"
 echo ""
 
-# Check if MkDocs is already installed
+# Check if MkDocs is already installed and usable
+MKDOCS_INSTALLED=false
 if command -v mkdocs &> /dev/null; then
-  MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
-  echo "  ℹ️  MkDocs already installed: $MKDOCS_VERSION"
-  echo "  ✅ Status: Found existing installation"
-  echo "  → Skipping installation"
-else
-  echo "  🔍 Status: Not found, proceeding with installation..."
-  MKDOCS_INSTALLED=false
-  
-  # Try Method 1: pip (standard)
-  if command -v pip &> /dev/null; then
-    echo "  → Attempt 1: Installing MkDocs via pip..."
-    if pip install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
+  if mkdocs --help &> /dev/null; then
+    MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
+    echo "  ℹ️  MkDocs already installed: $MKDOCS_VERSION"
+    echo "  ✅ Status: Found existing installation"
+    echo "  → Skipping installation"
+    MKDOCS_INSTALLED=true
+  else
+    echo "  ⚠️  MkDocs is installed but not working (likely Python/setuptools mismatch)"
+  fi
+fi
+
+if [ "$MKDOCS_INSTALLED" = false ]; then
+  echo "  🔍 Status: Not found or broken, proceeding with installation..."
+
+  PYTHON_BIN=""
+  if command -v python3 &> /dev/null; then
+    PYTHON_BIN="python3"
+  elif command -v python &> /dev/null; then
+    PYTHON_BIN="python"
+  fi
+
+  if [ -n "$PYTHON_BIN" ]; then
+    echo "  → Ensuring pip, setuptools, and wheel are up to date..."
+    $PYTHON_BIN -m pip install --upgrade pip setuptools wheel > /dev/null 2>&1 || true
+  fi
+
+  # Try Method 1: python -m pip (preferred)
+  if [ -n "$PYTHON_BIN" ]; then
+    echo "  → Attempt 1: Installing MkDocs via $PYTHON_BIN -m pip..."
+    if $PYTHON_BIN -m pip install --upgrade --force-reinstall mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
       if command -v mkdocs &> /dev/null; then
         MKDOCS_INSTALLED=true
         MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
@@ -306,40 +327,36 @@ else
       echo "     ✗ Installation via pip failed"
     fi
   fi
-  
-  # Try Method 2: pip3 (if pip failed)
-  if [ "$MKDOCS_INSTALLED" = false ] && command -v pip3 &> /dev/null; then
-    echo "  → Attempt 2: Installing MkDocs via pip3..."
-    if pip3 install --upgrade mkdocs 2>&1 | grep -E "(Successfully installed|already satisfied)"; then
-      if command -v mkdocs &> /dev/null; then
-        MKDOCS_INSTALLED=true
-        MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
-        echo "     ✓ MkDocs installed via pip3: $MKDOCS_VERSION"
-      fi
-    else
-      echo "     ✗ Installation via pip3 failed"
+
+  # Try Method 2: apt (only on Python < 3.12)
+  PYTHON_TOO_NEW=false
+  if command -v python3 &> /dev/null; then
+    PY_MAJOR=$(python3 -c "import sys; print(sys.version_info[0])" 2>/dev/null || echo "3")
+    PY_MINOR=$(python3 -c "import sys; print(sys.version_info[1])" 2>/dev/null || echo "0")
+    if [ "$PY_MAJOR" -ge 3 ] && [ "$PY_MINOR" -ge 12 ]; then
+      PYTHON_TOO_NEW=true
     fi
   fi
-  
-  # Try Method 3: apt (if pip methods failed)
-  if [ "$MKDOCS_INSTALLED" = false ] && [ "$EUID" -eq 0 ]; then
-    echo "  → Attempt 3: Installing MkDocs via apt..."
+
+  if [ "$MKDOCS_INSTALLED" = false ] && [ "$EUID" -eq 0 ] && [ "$PYTHON_TOO_NEW" = false ]; then
+    echo "  → Attempt 2: Installing MkDocs via apt..."
     if apt-get update -y > /dev/null 2>&1 && DEBIAN_FRONTEND=noninteractive apt-get install -y mkdocs > /dev/null 2>&1; then
       if command -v mkdocs &> /dev/null; then
-        # Test if mkdocs actually works (might have Python compatibility issues)
         if mkdocs --version &> /dev/null; then
           MKDOCS_INSTALLED=true
           MKDOCS_VERSION=$(mkdocs --version 2>&1 | head -n 1 || echo "installed")
           echo "     ✓ MkDocs installed via apt: $MKDOCS_VERSION"
         else
-          echo "     ✗ MkDocs installed but has compatibility issues (likely Python version conflict)"
+          echo "     ✗ MkDocs installed but has compatibility issues"
         fi
       fi
     else
       echo "     ✗ Installation via apt failed"
     fi
+  elif [ "$MKDOCS_INSTALLED" = false ] && [ "$PYTHON_TOO_NEW" = true ]; then
+    echo "  → Skipping apt install: Python 3.12+ detected (apt mkdocs is incompatible)"
   fi
-  
+
   # Final status
   echo ""
   if [ "$MKDOCS_INSTALLED" = true ]; then
@@ -352,9 +369,8 @@ else
   else
     echo "  ⚠️  Warning: MkDocs installation failed via all methods"
     echo "  💡 Manual installation options:"
-    echo "     • pip install mkdocs"
-    echo "     • pip3 install --user mkdocs"
-    echo "     • sudo apt install mkdocs"
+    echo "     • python3 -m pip install --upgrade mkdocs"
+    echo "     • python3 -m pip install --user mkdocs"
     echo "  → Continuing with remaining installations..."
   fi
 fi
@@ -363,7 +379,7 @@ echo ""
 # ===============================================================
 # 4. MERMAID CLI - DIAGRAM GENERATION FROM TEXT
 # ===============================================================
-echo "📊 [4/8] Installing Mermaid CLI..."
+echo "📊 [4/10] Installing Mermaid CLI..."
 echo "----------------------------------"
 echo "  📝 Description: Generate diagrams and flowcharts from text definitions"
 echo "  🌐 Website: https://mermaid.js.org"
@@ -416,7 +432,7 @@ echo ""
 # ===============================================================
 # 5. OPENAI CODEX
 # ===============================================================
-echo "🧠 [5/8] Installing OpenAI Codex..."
+echo "🧠 [5/10] Installing OpenAI Codex..."
 echo "-----------------------------------"
 echo "  📝 Description: OpenAI's AI code completion and generation tool"
 echo "  🌐 Website: https://openai.com/blog/openai-codex"
@@ -471,7 +487,7 @@ echo ""
 # ===============================================================
 # 6. ANTHROPIC CLAUDE CODE
 # ===============================================================
-echo "🎯 [6/8] Installing Anthropic Claude Code..."
+echo "🎯 [6/10] Installing Anthropic Claude Code..."
 echo "--------------------------------------------"
 echo "  📝 Description: Anthropic's Claude AI coding assistant"
 echo "  🌐 Website: https://www.anthropic.com"
@@ -526,7 +542,7 @@ echo ""
 # ===============================================================
 # 7. GITHUB COPILOT CLI
 # ===============================================================
-echo "🤖 [7/8] Installing GitHub Copilot CLI..."
+echo "🤖 [7/10] Installing GitHub Copilot CLI..."
 echo "-----------------------------------------"
 echo "  📝 Description: AI-powered command line assistant from GitHub"
 echo "  🌐 Website: https://githubnext.com/projects/copilot-cli"
@@ -591,10 +607,142 @@ fi
 echo ""
 
 # ===============================================================
-# 8. MARKDOWN TO PDF CONVERTER (MD-TO-PDF)
+# 8. NGROK - SECURE TUNNELS TO LOCALHOST
 # ===============================================================
-echo "📄 [8/8] Installing Markdown to PDF Converter (md-to-pdf)..."
-echo "------------------------------------------------------------"
+echo "🔗 [8/10] Installing ngrok..."
+echo "----------------------------"
+echo "  📝 Description: Securely expose local services to the internet"
+echo "  🌐 Website: https://ngrok.com"
+echo ""
+
+# Check if ngrok is already installed
+if command -v ngrok &> /dev/null; then
+  NGROK_VERSION=$(ngrok version 2>&1 | head -n 1 || echo "installed")
+  echo "  ℹ️  ngrok already installed: $NGROK_VERSION"
+  echo "  ✅ Status: Found existing installation"
+  echo "  → Skipping installation"
+else
+  echo "  🔍 Status: Not found, proceeding with installation..."
+  if [ "$EUID" -eq 0 ]; then
+    echo "  → Installing ngrok via apt repository..."
+    apt-get update -y > /dev/null 2>&1
+    apt-get install -y wget gpg > /dev/null 2>&1
+    wget -qO- https://ngrok-agent.s3.amazonaws.com/ngrok.asc | gpg --dearmor > /tmp/ngrok.gpg
+    install -D -o root -g root -m 644 /tmp/ngrok.gpg /etc/apt/keyrings/ngrok.gpg
+    rm /tmp/ngrok.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/ngrok.gpg] https://ngrok-agent.s3.amazonaws.com buster main" > /etc/apt/sources.list.d/ngrok.list
+    apt-get update -y > /dev/null 2>&1
+    if DEBIAN_FRONTEND=noninteractive apt-get install -y ngrok > /dev/null 2>&1; then
+      if command -v ngrok &> /dev/null; then
+        NGROK_VERSION=$(ngrok version 2>&1 | head -n 1 || echo "installed")
+        echo ""
+        echo "  ✅ ngrok successfully installed!"
+        echo "     Version: $NGROK_VERSION"
+        echo "     Command: ngrok"
+        echo "     Note: Requires ngrok account auth token"
+      else
+        echo ""
+        echo "  ❌ Error: ngrok installation failed"
+        echo "     Check package manager logs for details"
+      fi
+    else
+      echo ""
+      echo "  ❌ Error: ngrok installation failed via apt"
+    fi
+  else
+    echo "  → Installing ngrok to user local bin (~/.local/bin)..."
+    INSTALL_DIR="$HOME/.local/bin"
+    mkdir -p "$INSTALL_DIR"
+    ARCH="$(uname -m)"
+    NGROK_ARCH=""
+    case "$ARCH" in
+      x86_64|amd64) NGROK_ARCH="amd64" ;;
+      aarch64|arm64) NGROK_ARCH="arm64" ;;
+      *) NGROK_ARCH="" ;;
+    esac
+    if [ -z "$NGROK_ARCH" ]; then
+      echo "  ❌ Unsupported architecture for ngrok: $ARCH"
+    else
+      TMP_DIR="$(mktemp -d)"
+      if wget -qO "$TMP_DIR/ngrok.tgz" "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-${NGROK_ARCH}.tgz"; then
+        if tar -xzf "$TMP_DIR/ngrok.tgz" -C "$TMP_DIR"; then
+          install -m 755 "$TMP_DIR/ngrok" "$INSTALL_DIR/ngrok"
+          echo ""
+          echo "  ✅ ngrok installed to $INSTALL_DIR/ngrok"
+          echo "     Command: ngrok"
+          echo "     Note: Ensure ~/.local/bin is in PATH"
+        else
+          echo ""
+          echo "  ❌ Error: Failed to extract ngrok archive"
+        fi
+      else
+        echo ""
+        echo "  ❌ Error: Failed to download ngrok"
+      fi
+      rm -rf "$TMP_DIR"
+    fi
+  fi
+fi
+echo ""
+
+# ===============================================================
+# 9. CLOUDFLARED - CLOUDFLARE TUNNEL CLIENT
+# ===============================================================
+echo "☁️  [9/10] Installing cloudflared..."
+echo "-----------------------------------"
+echo "  📝 Description: Cloudflare Tunnel client for secure ingress"
+echo "  🌐 Website: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
+echo ""
+
+# Check if cloudflared is already installed
+if command -v cloudflared &> /dev/null; then
+  CLOUDFLARED_VERSION=$(cloudflared --version 2>&1 | head -n 1 || echo "installed")
+  echo "  ℹ️  cloudflared already installed: $CLOUDFLARED_VERSION"
+  echo "  ✅ Status: Found existing installation"
+  echo "  → Skipping installation"
+else
+  echo "  🔍 Status: Not found, proceeding with installation..."
+  INSTALL_DIR="/usr/local/bin"
+  if [ "$EUID" -ne 0 ]; then
+    INSTALL_DIR="$HOME/.local/bin"
+    mkdir -p "$INSTALL_DIR"
+  fi
+
+  ARCH="$(uname -m)"
+  CLOUDFLARED_BIN=""
+  case "$ARCH" in
+    x86_64|amd64) CLOUDFLARED_BIN="cloudflared-linux-amd64" ;;
+    aarch64|arm64) CLOUDFLARED_BIN="cloudflared-linux-arm64" ;;
+    armv7l) CLOUDFLARED_BIN="cloudflared-linux-arm" ;;
+    *) CLOUDFLARED_BIN="" ;;
+  esac
+
+  if [ -z "$CLOUDFLARED_BIN" ]; then
+    echo "  ❌ Unsupported architecture for cloudflared: $ARCH"
+  else
+    TMP_FILE="$(mktemp)"
+    if wget -qO "$TMP_FILE" "https://github.com/cloudflare/cloudflared/releases/latest/download/${CLOUDFLARED_BIN}"; then
+      install -m 755 "$TMP_FILE" "$INSTALL_DIR/cloudflared"
+      echo ""
+      echo "  ✅ cloudflared installed to $INSTALL_DIR/cloudflared"
+      echo "     Command: cloudflared"
+      if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+        echo "     Note: Ensure ~/.local/bin is in PATH"
+      fi
+    else
+      echo ""
+      echo "  ❌ Error: Failed to download cloudflared"
+    fi
+    rm -f "$TMP_FILE"
+  fi
+fi
+echo ""
+
+# ===============================================================
+# 10. MARKDOWN TO PDF CONVERTER (MD-TO-PDF)
+# ===============================================================
+echo "📄 [10/10] Installing Markdown to PDF Converter (md-to-pdf)..."
+echo "-------------------------------------------------------------"
 echo "  📝 Description: Convert Markdown files to PDF with proper image handling"
 echo "  🌐 Package: md-to-pdf"
 echo "  💡 Use case: Documentation, reports, README exports with embedded images"
@@ -739,6 +887,28 @@ elif command -v github-copilot-cli &> /dev/null; then
   COPILOT_LOCATION="$(which github-copilot-cli)"
 fi
 
+NGROK_STATUS="❌"
+NGROK_VER="Not installed"
+NGROK_CMD=""
+NGROK_LOCATION=""
+if command -v ngrok &> /dev/null; then
+  NGROK_STATUS="✅"
+  NGROK_VER="$(ngrok version 2>&1 | head -n 1 || echo 'Installed')"
+  NGROK_CMD="ngrok"
+  NGROK_LOCATION="$(which ngrok)"
+fi
+
+CLOUDFLARED_STATUS="❌"
+CLOUDFLARED_VER="Not installed"
+CLOUDFLARED_CMD=""
+CLOUDFLARED_LOCATION=""
+if command -v cloudflared &> /dev/null; then
+  CLOUDFLARED_STATUS="✅"
+  CLOUDFLARED_VER="$(cloudflared --version 2>&1 | head -n 1 || echo 'Installed')"
+  CLOUDFLARED_CMD="cloudflared"
+  CLOUDFLARED_LOCATION="$(which cloudflared)"
+fi
+
 MDTOPDF_STATUS="❌"
 MDTOPDF_VER="Not installed"
 MDTOPDF_CMD=""
@@ -825,6 +995,30 @@ echo "│  Status:   $COPILOT_STATUS $COPILOT_VER"
 echo "└────────────────────────────────────────────────────────────────┘"
 echo ""
 
+# ngrok block
+echo "┌────────────────────────────────────────────────────────────────┐"
+echo "│  🔗  NGROK                                                     │"
+echo "├────────────────────────────────────────────────────────────────┤"
+echo "│  Status:   $NGROK_STATUS $NGROK_VER"
+[ -n "$NGROK_CMD" ] && echo "│  Command:  $NGROK_CMD"
+[ -n "$NGROK_LOCATION" ] && echo "│  Location: $NGROK_LOCATION"
+[ "$NGROK_STATUS" = "✅" ] && echo "│  Usage:    ngrok http 8080"
+[ "$NGROK_STATUS" = "✅" ] && echo "│  Setup:    ngrok config add-authtoken <token>"
+echo "└────────────────────────────────────────────────────────────────┘"
+echo ""
+
+# cloudflared block
+echo "┌────────────────────────────────────────────────────────────────┐"
+echo "│  ☁️  CLOUDFLARED                                              │"
+echo "├────────────────────────────────────────────────────────────────┤"
+echo "│  Status:   $CLOUDFLARED_STATUS $CLOUDFLARED_VER"
+[ -n "$CLOUDFLARED_CMD" ] && echo "│  Command:  $CLOUDFLARED_CMD"
+[ -n "$CLOUDFLARED_LOCATION" ] && echo "│  Location: $CLOUDFLARED_LOCATION"
+[ "$CLOUDFLARED_STATUS" = "✅" ] && echo "│  Usage:    cloudflared tunnel login"
+[ "$CLOUDFLARED_STATUS" = "✅" ] && echo "│  Docs:     https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
+echo "└────────────────────────────────────────────────────────────────┘"
+echo ""
+
 echo "┌────────────────────────────────────────────────────────────────┐"
 echo "│  📄  MARKDOWN TO PDF CONVERTER                                 │"
 echo "├────────────────────────────────────────────────────────────────┤"
@@ -838,15 +1032,17 @@ echo ""
 
 # Count successful installations
 SUCCESS_COUNT=0
-TOTAL_COUNT=8
+TOTAL_COUNT=10
 [ "$VSCODE_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$CHROMIUM_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$MKDOCS_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$MERMAID_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$CODEX_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$CLAUDE_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
-[ "$MDTOPDF_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 [ "$COPILOT_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$NGROK_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$CLOUDFLARED_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
+[ "$MDTOPDF_STATUS" = "✅" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1)) || true
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
@@ -863,6 +1059,8 @@ if [ $SUCCESS_COUNT -eq $TOTAL_COUNT ]; then
   echo "     • OpenAI Codex ................ ✅ Ready"
   echo "     • Anthropic Claude Code ....... ✅ Ready"
   echo "     • GitHub Copilot CLI .......... ✅ Ready"
+  echo "     • ngrok ....................... ✅ Ready"
+  echo "     • cloudflared ................. ✅ Ready"
   echo "     • Markdown to PDF ............. ✅ Ready"
   echo ""
 elif [ $SUCCESS_COUNT -gt 0 ]; then
@@ -946,6 +1144,24 @@ if [ "$COPILOT_STATUS" = "✅" ]; then
   echo "     • Explain command:     ?? <what you want to do>"
   echo "     • Git assistance:      git? <what you want to do>"
   echo "     • GitHub CLI help:     gh? <what you want to do>"
+  echo ""
+fi
+
+if [ "$NGROK_STATUS" = "✅" ]; then
+  echo "  🔗 ngrok:"
+  echo "     • Check version:       ngrok version"
+  echo "     • Add auth token:      ngrok config add-authtoken <token>"
+  echo "     • Start HTTP tunnel:   ngrok http 8080"
+  echo "     • Web UI:              http://127.0.0.1:4040"
+  echo ""
+fi
+
+if [ "$CLOUDFLARED_STATUS" = "✅" ]; then
+  echo "  ☁️  cloudflared:"
+  echo "     • Check version:       cloudflared --version"
+  echo "     • Login:               cloudflared tunnel login"
+  echo "     • Quick tunnel:        cloudflared tunnel --url http://localhost:8080"
+  echo "     • Docs:                https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
   echo ""
 fi
 

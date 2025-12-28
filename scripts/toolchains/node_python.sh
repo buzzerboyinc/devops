@@ -11,16 +11,18 @@
 #    2. Python 3 Environment & Virtual Environment Tools
 #    3. Python Diagram Libraries (diagrams, graphviz, pydot, pygraphviz)
 #    4. AWS CLI v2 (Official Package)
-#    5. AWS Lightsail Plugin (lightsailctl)
-#    6. Microsoft .NET 8 SDK
-#    7. HashiCorp Terraform (Latest Stable)
-#    8. Docker & Docker CE (Container Runtime)
-#    9. Node Version Manager (nvm) - Global Installation
-#   10. Node.js 20 LTS - Global Installation via nvm
-#   11. NPM Package Manager - Included with Node.js
-#   12. Global Environment Configuration
-#   13. CDK for Terraform (cdktf-cli) - Global NPM Package
-#   14. Markdown to PDF Converter (mdpdf) - Global NPM Package
+#    5. Microsoft Azure CLI
+#    6. Azure DevOps Extension (Azure CLI)
+#    7. AWS Lightsail Plugin (lightsailctl)
+#    8. Microsoft .NET 8 SDK
+#    9. HashiCorp Terraform (Latest Stable)
+#   10. Docker & Docker CE (Container Runtime)
+#   11. Node Version Manager (nvm) - Global Installation
+#   12. Node.js 20 LTS - Global Installation via nvm
+#   13. NPM Package Manager - Included with Node.js
+#   14. Global Environment Configuration
+#   15. CDK for Terraform (cdktf-cli) - Global NPM Package
+#   16. Markdown to PDF Converter (mdpdf) - Global NPM Package
 #
 #  Usage:
 #    sudo bash node_python.sh
@@ -80,7 +82,7 @@ echo ""
 # ===============================================================
 # 1. SYSTEM DEPENDENCIES & BUILD TOOLS
 # ===============================================================
-echo "📦 [1/11] Installing System Dependencies & Build Tools..."
+echo "📦 [1/16] Installing System Dependencies & Build Tools..."
 echo "-------------------------------------------------------"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -104,7 +106,7 @@ apt-get update -y
 
 apt-get install -y \
   ca-certificates apt-transport-https gnupg lsb-release software-properties-common \
-  git curl tar wget unzip jq
+  git curl tar wget unzip jq shellcheck
 apt-get install -y pkg-config default-libmysqlclient-dev build-essential libssl-dev libffi-dev libpq-dev gcc git wget
 
 echo "  → Installing build tools and development libraries..."
@@ -157,7 +159,7 @@ echo ""
 # ===============================================================
 # 2. PYTHON 3 ENVIRONMENT & VIRTUAL ENVIRONMENT TOOLS
 # ===============================================================
-echo "🐍 [2/11] Installing Python 3 Environment..."
+echo "🐍 [2/16] Installing Python 3 Environment..."
 echo "---------------------------------------------"
 
 # Install Python 3 and virtual environment tools
@@ -179,13 +181,15 @@ if ! python3 -m pip --version >/dev/null 2>&1; then
 fi
 
 python3 -m pip --version
+echo "  → Upgrading pip/setuptools/wheel for Python 3.12 compatibility..."
+python3 -m pip install --upgrade pip setuptools wheel || echo "  ⚠️  Warning: pip/setuptools upgrade failed, continuing"
 echo "✅ Python 3 environment setup completed"
 echo ""
 
 # ===============================================================
 # 3. PYTHON DIAGRAM LIBRARIES
 # ===============================================================
-echo "🎨 [3/14] Installing Python Diagram Libraries..."
+echo "🎨 [3/16] Installing Python Diagram Libraries..."
 echo "------------------------------------------------"
 
 # Check if diagram libraries are already installed
@@ -214,7 +218,7 @@ echo ""
 # ===============================================================
 # 4. AWS CLI v2 (OFFICIAL PACKAGE)
 # ===============================================================
-echo "☁️  [4/14] Installing AWS CLI v2..."
+echo "☁️  [4/16] Installing AWS CLI v2..."
 echo "----------------------------------"
 
 # Check if AWS CLI is already installed
@@ -244,9 +248,54 @@ echo "✅ AWS CLI v2 installation completed"
 echo ""
 
 # ===============================================================
-# 5. AWS LIGHTSAIL PLUGIN (LIGHTSAILCTL)
+# 5. MICROSOFT AZURE CLI
 # ===============================================================
-echo "☁️  [5/14] Installing AWS Lightsail Plugin..."
+echo "☁️  [5/16] Installing Microsoft Azure CLI..."
+echo "--------------------------------------------"
+
+# Check if Azure CLI is already installed
+if command -v az &> /dev/null; then
+  AZ_VERSION=$(az --version 2>/dev/null | head -n 1 || echo "installed")
+  echo "  ℹ️  Azure CLI already installed: ${AZ_VERSION}"
+  echo "  → Skipping installation"
+else
+  # Install Azure CLI using the official installer
+  echo "  → Installing Azure CLI..."
+  curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+  # Verify Azure CLI installation
+  AZ_VERSION=$(az --version 2>/dev/null | head -n 1 || echo "installed")
+  echo "  → Azure CLI installed: ${AZ_VERSION}"
+fi
+echo "✅ Microsoft Azure CLI installation completed"
+echo ""
+
+# ===============================================================
+# 6. AZURE DEVOPS EXTENSION (AZURE CLI)
+# ===============================================================
+echo "☁️  [6/16] Installing Azure DevOps Extension..."
+echo "----------------------------------------------"
+
+# Install Azure DevOps extension if Azure CLI is available
+if command -v az &> /dev/null; then
+  if az extension show --name azure-devops >/dev/null 2>&1; then
+    echo "  ℹ️  Azure DevOps extension already installed"
+    echo "  → Skipping installation"
+  else
+    echo "  → Installing Azure DevOps extension..."
+    az extension add --name azure-devops
+    echo "  → Azure DevOps extension installed"
+  fi
+else
+  echo "  ⚠️  Azure CLI not found, skipping Azure DevOps extension installation"
+fi
+echo "✅ Azure DevOps extension installation completed"
+echo ""
+
+# ===============================================================
+# 7. AWS LIGHTSAIL PLUGIN (LIGHTSAILCTL)
+# ===============================================================
+echo "☁️  [7/16] Installing AWS Lightsail Plugin..."
 echo "--------------------------------------------"
 
 # Check if lightsailctl is already installed
@@ -271,9 +320,9 @@ echo "✅ AWS Lightsail Plugin installation completed"
 echo ""
 
 # ===============================================================
-# 6. MICROSOFT .NET 8 SDK
+# 8. MICROSOFT .NET 8 SDK
 # ===============================================================
-echo "⚡ [6/14] Installing Microsoft .NET 8 SDK..."
+echo "⚡ [8/16] Installing Microsoft .NET 8 SDK..."
 echo "--------------------------------------------"
 
 # Check if .NET SDK is already installed
@@ -310,9 +359,9 @@ echo "✅ Microsoft .NET 8 SDK installation completed"
 echo ""
 
 # ===============================================================
-# 7. HASHICORP TERRAFORM (LATEST STABLE)
+# 9. HASHICORP TERRAFORM (LATEST STABLE)
 # ===============================================================
-echo "🏗️  [7/14] Installing HashiCorp Terraform..."
+echo "🏗️  [9/16] Installing HashiCorp Terraform..."
 echo "-------------------------------------------"
 
 # Check if Terraform is already installed
@@ -344,9 +393,9 @@ echo "✅ HashiCorp Terraform installation completed"
 echo ""
 
 # ===============================================================
-# 8. DOCKER & DOCKER CE (CONTAINER RUNTIME)
+# 10. DOCKER & DOCKER CE (CONTAINER RUNTIME)
 # ===============================================================
-echo "🐳 [8/14] Installing Docker & Docker CE..."
+echo "🐳 [10/16] Installing Docker & Docker CE..."
 echo "-----------------------------------------"
 
 # Check if Docker is already installed
@@ -406,9 +455,9 @@ echo "✅ Docker & Docker CE installation completed"
 echo ""
 
 # ===============================================================
-# 9. NODE VERSION MANAGER (NVM) - GLOBAL INSTALLATION
+# 11. NODE VERSION MANAGER (NVM) - GLOBAL INSTALLATION
 # ===============================================================
-echo "📦 [9/14] Installing Node Version Manager (nvm)..."
+echo "📦 [11/16] Installing Node Version Manager (nvm)..."
 echo "-------------------------------------------------"
 
 # Set up global nvm directory (accessible to all users)
@@ -437,9 +486,9 @@ echo "✅ Node Version Manager (nvm) installation completed"
 echo ""
 
 # ===============================================================
-# 10. NODE.JS 20 LTS - GLOBAL INSTALLATION VIA NVM
+# 12. NODE.JS 20 LTS - GLOBAL INSTALLATION VIA NVM
 # ===============================================================
-echo "🟢 [10/14] Installing Node.js 20 LTS..."
+echo "🟢 [12/16] Installing Node.js 20 LTS..."
 echo "-------------------------------------"
 
 # Check if Node.js 20 is already installed
@@ -470,9 +519,9 @@ echo "✅ Node.js 20 LTS installation completed"
 echo ""
 
 # ===============================================================
-# 11. NPM PACKAGE MANAGER - INCLUDED WITH NODE.JS
+# 13. NPM PACKAGE MANAGER - INCLUDED WITH NODE.JS
 # ===============================================================
-echo "📦 [11/14] Configuring NPM Package Manager..."
+echo "📦 [13/16] Configuring NPM Package Manager..."
 echo "--------------------------------------------"
 
 # NPM is automatically installed with Node.js, just verify and show version
@@ -485,9 +534,9 @@ echo "✅ NPM Package Manager configuration completed"
 echo ""
 
 # ===============================================================
-# 12. GLOBAL ENVIRONMENT CONFIGURATION
+# 14. GLOBAL ENVIRONMENT CONFIGURATION
 # ===============================================================
-echo "🌍 [12/14] Configuring Global Environment Access..."
+echo "🌍 [14/16] Configuring Global Environment Access..."
 echo "--------------------------------------------------"
 
 # Make nvm and Node.js globally available to all users via profile.d
@@ -519,9 +568,9 @@ echo "✅ Global environment configuration completed"
 echo ""
 
 # ===============================================================
-# 13. CDK FOR TERRAFORM (CDKTF-CLI) - GLOBAL NPM PACKAGE
+# 15. CDK FOR TERRAFORM (CDKTF-CLI) - GLOBAL NPM PACKAGE
 # ===============================================================
-echo "🏗️  [13/14] Installing CDK for Terraform (cdktf-cli)..."
+echo "🏗️  [15/16] Installing CDK for Terraform (cdktf-cli)..."
 echo "-------------------------------------------------------"
 
 # Load global nvm environment
@@ -545,9 +594,9 @@ echo "✅ CDK for Terraform (cdktf-cli) installation completed"
 echo ""
 
 # ===============================================================
-# 14. MARKDOWN TO PDF CONVERTER (MDPDF) - GLOBAL NPM PACKAGE
+# 16. MARKDOWN TO PDF CONVERTER (MDPDF) - GLOBAL NPM PACKAGE
 # ===============================================================
-echo "📄 [14/14] Installing Markdown to PDF Converter (mdpdf)..."
+echo "📄 [16/16] Installing Markdown to PDF Converter (mdpdf)..."
 echo "---------------------------------------------------------"
 
 # Load global nvm environment
@@ -576,6 +625,23 @@ echo ""
 echo "🔍 Verifying All Installations..."
 echo "================================"
 echo ""
+echo "🧪 Running Smoke Tests..."
+echo "------------------------"
+if command -v shellcheck &> /dev/null; then
+  echo "  ✅ ShellCheck installed: $(shellcheck --version | head -n 1)"
+else
+  echo "  ⚠️  ShellCheck not found (smoke test skipped)"
+fi
+if command -v az &> /dev/null; then
+  if az --version >/dev/null 2>&1; then
+    echo "  ✅ Azure CLI responds to --version"
+  else
+    echo "  ⚠️  Azure CLI installed but version check failed"
+  fi
+else
+  echo "  ⚠️  Azure CLI not found (smoke test skipped)"
+fi
+echo ""
 echo "📋 Installed Software Versions:"
 echo "------------------------------"
 
@@ -586,6 +652,7 @@ echo "🐍 PYTHON:     $(python3 --version)"
 echo "🎨 DIAGRAMS:   $(python3 -c 'import diagrams; print("installed")' 2>&1 || echo 'not installed')"
 echo "📊 GRAPHVIZ:   $(dot -V 2>&1 | head -n 1)"
 echo "☁️  AWS CLI:    $(aws --version | cut -d' ' -f1-2)"
+echo "☁️  AZ CLI:     $(az --version 2>/dev/null | head -n 1 || echo 'not installed')"
 echo "☁️  LIGHTSAIL:  $(lightsailctl --version 2>&1 | head -n 1 || echo 'installed (version check may not work)')"
 echo "⚡ .NET SDK:    $(dotnet --version) ($(dotnet --list-sdks | wc -l) SDK(s) installed)"
 echo "🏗️  TERRAFORM:  $(terraform -version | head -n 1)"
